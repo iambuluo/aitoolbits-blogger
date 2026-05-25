@@ -2,6 +2,8 @@
 
 Auto-publish AI tool reviews & tutorials to [aitoolbits.blogspot.com](https://aitoolbits.blogspot.com) using GitHub Actions.
 
+> 📖 **维护指南**: 查看 [MAINTENANCE.md](./MAINTENANCE.md) 了解日常运维、故障排查、广告配置等。
+
 ## How It Works
 
 ```
