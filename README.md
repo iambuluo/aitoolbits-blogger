@@ -2,102 +2,91 @@
 
 Auto-publish AI tool reviews & tutorials to [aitoolbits.blogspot.com](https://aitoolbits.blogspot.com) using GitHub Actions.
 
-> 📖 **维护指南**: 查看 [MAINTENANCE.md](./MAINTENANCE.md) 了解日常运维、故障排查、广告配置等。
+> **Full documentation**: See [MAINTENANCE.md](./MAINTENANCE.md) for operations guide, troubleshooting, and ad revenue strategy.
 
 ## How It Works
 
 ```
-GitHub Actions (3x daily)
-    → DeepSeek API generates article ($0.01/article)
-    → Blogger API publishes to blog
-    → Done! No manual work needed
+GitHub Actions (3x daily, runs on GitHub cloud - no local machine needed)
+    → Random topic selection from 89 topics (10 categories)
+    → DeepSeek API generates 1800-2500 word article ($0.01/article)
+    → Auto SEO: product links, E-E-A-T, smart labels, search descriptions
+    → Blogger API v3 publishes with OAuth 2.0 (auto token refresh)
+    → Done! Fully automated, zero manual work
 ```
 
-## Setup (One-Time, ~10 minutes)
+### Key Features
 
-### Step 1: Create Google Cloud OAuth Credentials
+| Feature | Details |
+|---------|---------|
+| Article count | 89 topics, 10 categories |
+| Word count | 1800-2500 words/article |
+| SEO | Product links, E-E-A-T, LSI keywords, meta descriptions |
+| Labels | Smart auto-generated (5-6 per article) |
+| Ad placements | 3 positions (configurable: none/monetag/adsense) |
+| Publishing | Blogger API v3 with OAuth 2.0 auto-refresh |
+| Scheduling | 3x daily (Beijing 08:17, 14:42, 21:08) |
+| Cost | ~$1/month (DeepSeek API only) |
+
+## Setup (One-Time)
+
+### Step 1: Google Cloud OAuth Credentials
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project (e.g., "blogger-auto-publisher")
-3. Go to **APIs & Services > Library** → Search "Blogger API" → **Enable**
-4. Go to **APIs & Services > Credentials**
-5. Click **Create Credentials > OAuth client ID**
-6. Application type: **Desktop app**
-7. Name: `Blogger Auto Publisher`
-8. Click **Create** → Copy **Client ID** and **Client Secret**
+2. Create project → Enable [Blogger API](https://console.cloud.google.com/apis/library/blogger.googleapis.com)
+3. Create **OAuth 2.0 Client ID** (Desktop app type)
+4. Add your email as test user in OAuth consent screen
+5. Copy Client ID and Client Secret
 
-### Step 2: Get DeepSeek API Key
+### Step 2: DeepSeek API Key
 
 1. Go to [DeepSeek Platform](https://platform.deepseek.com/api_keys)
-2. Sign up / Log in
-3. Create a new API key → Copy it
-4. Cost: ~$0.01 per article (1500-2000 words)
+2. Create API key (~$0.01/article, $1/month for 3 articles/day)
 
-### Step 3: Run OAuth Setup Script
+### Step 3: Run OAuth Setup
 
 ```bash
 cd scripts
 python setup_oauth.py
 ```
 
-This will:
-1. Open your browser for Google authorization
-2. Ask you to paste the authorization code
-3. Exchange it for tokens
-4. Print your GitHub Secrets
+This opens browser for Google auth, exchanges code for tokens, and prints your Secrets.
 
-### Step 4: Create GitHub Repository & Add Secrets
+### Step 4: GitHub Repository + Secrets
 
-```bash
-# Create repo on GitHub, then:
-cd /path/to/aitoolbits-blogger
-git init
-git remote add origin https://github.com/YOUR_USERNAME/aitoolbits-blogger.git
-git add .
-git commit -m "Initial commit: auto blog publisher"
-git push -u origin main
-```
+Push to GitHub, then add 7 Secrets at **Settings > Secrets > Actions**:
 
-Then go to your GitHub repo → **Settings > Secrets and variables > Actions** → Add these:
-
-| Secret Name | Value |
-|-------------|-------|
+| Secret | Value |
+|--------|-------|
 | `BLOGGER_CLIENT_ID` | Your Google OAuth Client ID |
 | `BLOGGER_CLIENT_SECRET` | Your Google OAuth Client Secret |
 | `BLOGGER_REFRESH_TOKEN` | From setup_oauth.py output |
 | `BLOGGER_BLOG_ID` | From setup_oauth.py output |
 | `DEEPSEEK_API_KEY` | Your DeepSeek API key |
-| `AD_PROVIDER` | `monetag` (default), `adsense`, or `none` |
+| `AD_PROVIDER` | `none` (no ads), `monetag`, or `adsense` |
 | `AD_ZONE_ID` | Monetag zone ID or AdSense `ca-pub-XXXX` |
 
 ### Step 5: Done!
 
-The automation will now run **3 times daily**:
-- 8:17 AM Beijing time
-- 2:42 PM Beijing time
-- 9:08 PM Beijing time
+Automation runs 3x daily on GitHub cloud. No local machine needed.
 
 ## Manual Trigger
 
-Go to **GitHub repo > Actions > Auto Publish Blog Articles > Run workflow**
-
-Options:
+Go to **Actions > Auto Publish Blog Articles > Run workflow**
 - `article_count`: Number of articles (default: 1)
-- `is_draft`: Save as draft instead of publishing
+- `is_draft`: Save as draft (default: false)
 
 ## Local Testing
 
 ```bash
-# Generate articles (no publishing)
-python scripts/generate_article.py 1
+# Generate only (no publishing)
+python scripts/generate_article.py 3
 
-# Generate and publish (requires OAuth tokens)
-export BLOGGER_CLIENT_ID="..."
-export BLOGGER_CLIENT_SECRET="..."
-export BLOGGER_REFRESH_TOKEN="..."
-export BLOGGER_BLOG_ID="..."
-export DEEPSEEK_API_KEY="..."
-python scripts/publish_to_blogger.py 1 --draft  # Test as draft first
+# Generate + publish
+export BLOGGER_CLIENT_ID="..." BLOGGER_CLIENT_SECRET="..." \
+       BLOGGER_REFRESH_TOKEN="..." BLOGGER_BLOG_ID="..." \
+       DEEPSEEK_API_KEY="..."
+python scripts/publish_to_blogger.py 1 --draft
 ```
 
 ## Project Structure
@@ -105,40 +94,32 @@ python scripts/publish_to_blogger.py 1 --draft  # Test as draft first
 ```
 aitoolbits-blogger/
 ├── .github/workflows/
-│   └── publish-article.yml    # GitHub Actions workflow
+│   └── publish-article.yml    # GitHub Actions (3x daily cron)
 ├── scripts/
-│   ├── generate_article.py    # AI article generation
-│   ├── publish_to_blogger.py  # Blogger API publishing
-│   ├── setup_oauth.py         # One-time OAuth setup wizard
-│   └── topics.py              # 60+ article topic pool
-├── articles/                  # Pre-written & generated articles
-└── published/                 # Published article records
+│   ├── topics.py              # 89 topics, 10 categories
+│   ├── generate_article.py    # DeepSeek generator + SEO optimizer
+│   ├── publish_to_blogger.py  # Blogger API publisher (main entry)
+│   ├── setup_oauth.py         # One-time OAuth wizard
+│   └── oauth_setup.py         # OAuth authorization tool
+├── articles/                  # Generated article archive
+├── .gitignore                 # Excludes all JSON (protects secrets)
+└── requirements.txt
 ```
 
 ## Ad Revenue Strategy
 
-### Phase 1: Now (Monetag)
-- Every article auto-inserts **2 Monetag ad units** (mid-article + footer)
-- Start earning from the very first article
-- AD_PROVIDER = `monetag` (default)
-
-### Phase 2: After 30+ Articles (Apply AdSense)
-- Go to Blogger Dashboard → **Earnings** → Sign up for AdSense
-- Blogger's native AdSense approval is much more lenient than standalone sites
-- Wait for approval (usually 1-2 weeks)
-
-### Phase 3: After AdSense Approved (Switch)
-- Change `AD_PROVIDER` secret to `adsense`
-- Set `AD_ZONE_ID` to your `ca-pub-XXXXXX` client ID
-- AdSense will also appear via Blogger's built-in placement
-- You can keep both (Monetag in-article + AdSense sidebar/header via Blogger)
+| Phase | Articles | Action | AD_PROVIDER |
+|-------|----------|--------|-------------|
+| Now | 0-30 | Build content, no ads | `none` |
+| After 30+ | 30+ | Apply AdSense via Blogger dashboard | `none` |
+| Approved | 30+ | Enable ads | `adsense` |
 
 ## Cost Estimate
 
 | Item | Cost |
 |------|------|
-| DeepSeek API | ~$0.01/article × 3/day ≈ $0.03/day ≈ **$1/month** |
-| GitHub Actions | **Free** (public repo) |
+| DeepSeek API | ~$0.01 x 3/day ≈ **$1/month** |
+| GitHub Actions | **Free** (public repo: 2000 min/month, uses ~180) |
 | Blogger hosting | **Free** |
 | Blogger domain | **Free** |
 | **Total** | **~$1/month** |
