@@ -45,6 +45,8 @@ jobs:
           BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
           BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          AD_PROVIDER: ${{ secrets.AD_PROVIDER || 'monetag' }}
+          AD_ZONE_ID: ${{ secrets.AD_ZONE_ID || '229646' }}
         run: |
           cd scripts
           COUNT=${{ github.event.inputs.article_count || '1' }}
@@ -52,6 +54,9 @@ jobs:
           if [ "${{ github.event.inputs.is_draft }}" = "true" ]; then
             DRAFT_FLAG="--draft"
           fi
+
+          echo "Ad provider: $AD_PROVIDER"
+          echo "Ad zone/client: $AD_ZONE_ID"
 
           # Run the publish pipeline
           python publish_to_blogger.py $COUNT $DRAFT_FLAG

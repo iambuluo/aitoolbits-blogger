@@ -76,6 +76,57 @@ def clean_html(content: str) -> str:
     return content
 
 
+def insert_ads(content: str, provider: str = None, zone_id: str = None) -> str:
+    """Insert ad code into article content.
+
+    Strategy: insert ads after the first H2 section and at the end.
+    This maximizes revenue without hurting readability.
+
+    Args:
+        content: Clean HTML article content
+        provider: "monetag" or "adsense" or "none"
+        zone_id: Ad zone ID (Monetag) or client ID (AdSense)
+
+    Returns:
+        HTML content with ads inserted
+    """
+    provider = provider or os.environ.get("AD_PROVIDER", "monetag")
+    if provider == "none":
+        return content
+
+    zone_id = zone_id or os.environ.get("AD_ZONE_ID", "229646")
+
+    if provider == "monetag":
+        ad_code = f'<div style="margin:20px 0;text-align:center;"><script src="https://quge5.com/88/tag.min.js" data-zone="{zone_id}" async data-cfasync="false"></script></div>'
+    elif provider == "adsense":
+        client = zone_id  # For AdSense, zone_id stores the ca-pub-XXXX
+        ad_code = f'<div style="margin:20px 0;text-align:center;"><ins class="adsbygoogle" style="display:block" data-ad-client="{client}" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script></div>'
+    else:
+        return content
+
+    # Strategy: insert ad after first H2 section (after ~2-3 paragraphs)
+    lines = content.split("\n")
+    result_lines = []
+    h2_count = 0
+    inserted_first = False
+
+    for line in lines:
+        result_lines.append(line)
+        if line.strip().startswith("<h2") and not inserted_first:
+            h2_count += 1
+            # Insert ad after the SECOND H2 (skip the intro, insert mid-article)
+            if h2_count >= 2:
+                result_lines.append("")
+                result_lines.append(ad_code)
+                result_lines.append("")
+                inserted_first = True
+
+    content_with_first_ad = "\n".join(result_lines)
+
+    # Always add footer ad
+    return content_with_first_ad + "\n\n" + ad_code
+
+
 def generate_article(api_key: str = None) -> dict:
     """Generate a complete article ready for publishing.
 
@@ -93,6 +144,7 @@ def generate_article(api_key: str = None) -> dict:
 
     content = call_deepseek(prompt, api_key)
     content = clean_html(content)
+    content = insert_ads(content)
 
     # Generate filename from title
     slug = topic["title"].lower()
