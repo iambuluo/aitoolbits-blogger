@@ -195,7 +195,7 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
     results = []
     for i, article in enumerate(articles):
         if i > 0:
-            delay = random.randint(60, 300)  # 1-5 min between posts
+            delay = random.randint(10, 30)  # 10-30s between posts for CI
             print(f"\n  Waiting {delay}s before publishing next article...")
             time.sleep(delay)
 
