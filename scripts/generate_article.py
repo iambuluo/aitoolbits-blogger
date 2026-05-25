@@ -77,6 +77,69 @@ def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> st
         raise Exception(f"DeepSeek API request failed: {e}")
 
 
+def build_image_html(img: dict) -> str:
+    """Build SEO-optimized image HTML from image data.
+
+    Includes:
+    - Semantic <figure> wrapper
+    - Descriptive alt text for Google Image Search
+    - Proper width/height to prevent CLS (Core Web Vitals)
+    - Lazy loading for performance
+    - Photographer credit in figcaption
+    """
+    height = max(img.get("height", 500), 300)
+    return (
+        f'\n<figure style="margin:24px 0;text-align:center;">'
+        f'\n  <img src="{img["url"]}"'
+        f'\n       alt="{img["alt"]}"'
+        f'\n       loading="lazy"'
+        f'\n       style="max-width:100%;height:auto;border-radius:8px;"'
+        f'\n       width="{img["width"]}"'
+        f'\n       height="{height}">'
+        f'\n  <figcaption style="font-size:0.9em;color:#666;margin-top:8px;'
+        f'font-style:italic;">Photo by '
+        f'<a href="{img["photographer_url"]}" target="_blank" '
+        f'rel="nofollow noopener">{img["photographer"]}</a> via Pexels'
+        f'</figcaption>\n</figure>'
+    )
+
+
+def insert_images(content: str, images: list) -> str:
+    """Insert images into article content at strategic positions for SEO/GEO.
+
+    Placement strategy:
+    - 1st image: After the 1st H2 (hero image, grabs attention immediately)
+    - 2nd image: After the 3rd H2 (mid-article, reduces bounce rate)
+    - 3rd image: After the 5th H2 (deep content, only for longer articles)
+
+    SEO benefits:
+    - Images increase time-on-page (reduces bounce rate)
+    - Alt text helps Google Image Search ranking
+    - Proper width/height prevents CLS (Core Web Vitals signal)
+    - Lazy loading improves page load speed
+    - Figcaption adds semantic context for search engines
+    """
+    if not images:
+        return content
+
+    lines = content.split("\n")
+    result_lines = []
+    h2_count = 0
+    img_index = 0
+    image_positions = {1, 3, 5}  # Insert after these H2 positions
+
+    for line in lines:
+        result_lines.append(line)
+        if line.strip().startswith("<h2"):
+            h2_count += 1
+            if h2_count in image_positions and img_index < len(images):
+                img_html = build_image_html(images[img_index])
+                result_lines.append(img_html)
+                img_index += 1
+
+    return "\n".join(result_lines)
+
+
 def clean_html(content: str) -> str:
     """Clean and validate generated HTML content."""
     # Remove markdown artifacts that AI might generate

@@ -28,6 +28,8 @@
 3. **SEO 优化** - 自动添加产品链接、LSI 关键词、E-E-A-T 内容
 4. **发布** - Blogger API 自动发布，附带智能 Labels 和 Search Description
 5. **去重** - 自动避免重复标题
+6. **配图** - 自动从 Pexels 获取 1-3 张高清图片（需配置 PEXELS_API_KEY）
+7. **评论清理** - 自动删除垃圾评论
 
 你的电脑关机、WorkBuddy 不开，照样每天自动发文章。GitHub Actions 公共仓库每月免费 2000 分钟，实际每月只用约 180 分钟。
 
@@ -43,6 +45,8 @@ aitoolbits-blogger/
 │   ├── topics.py              # 89 个文章主题池（10个分类）
 │   ├── generate_article.py    # DeepSeek 文章生成器（含SEO/GEO优化）
 │   ├── publish_to_blogger.py  # Blogger API 发布器（主入口）
+│   ├── image_fetcher.py       # Pexels 图片获取（1-3张/篇）
+│   ├── comment_manager.py     # 评论管理（自动清理垃圾评论）
 │   ├── setup_oauth.py         # OAuth 一键设置向导
 │   └── oauth_setup.py         # OAuth 授权流程工具
 ├── articles/                  # 已生成的文章存档（10篇预写文章）
@@ -64,7 +68,8 @@ GitHub Actions 触发（定时或手动）
     ├─ 1. 读取环境变量（从 GitHub Secrets 注入，加密存储）
     │     BLOGGER_CLIENT_ID, BLOGGER_CLIENT_SECRET,
     │     BLOGGER_REFRESH_TOKEN, BLOGGER_BLOG_ID,
-    │     DEEPSEEK_API_KEY, AD_PROVIDER, AD_ZONE_ID
+    │     DEEPSEEK_API_KEY, AD_PROVIDER, AD_ZONE_ID,
+    │     PEXELS_API_KEY（可选，配图功能）
     │
     ├─ 2. 刷新 Access Token（refresh_token → access_token）
     │     OAuth 2.0 自动续期，无需人工干预
@@ -96,12 +101,25 @@ GitHub Actions 触发（定时或手动）
     │     ├─ _generate_search_description()：SEO meta description（150-160字符）
     │     └─ insert_ads()：广告插入（当前 none，可切换 monetag/adsense，3个广告位）
     │
+    ├─ 5.5. 图片插入（image_fetcher.py + generate_article.py）
+    │     ├─ 从文章分类/标题生成图片搜索关键词
+    │     ├─ Pexels API 搜索高清图片（1-3 张/篇）
+    │     ├─ 策略性插入：第1张→第1个H2后（首图），第2张→第3个H2后，第3张→第5个H2后
+    │     ├─ SEO 优化：figure 语义标签 + alt 描述 + lazy loading + 宽高防 CLS
+    │     ├─ 摄影师署名（figcaption 链接，利于 E-E-A-T）
+    │     └─ 无 PEXELS_API_KEY 时自动跳过，不影响发布
+    │
     ├─ 6. 发布到 Blogger（publish_to_blogger.py → Blogger API v3）
     │     POST /blogger/v3/blogs/{blog_id}/posts
     │     包含：title, content, labels, searchDescription
     │     多篇文章间隔 10-30 秒随机延迟
     │
-    └─ 7. 输出结果日志
+    ├─ 7. 评论清理（comment_manager.py）
+    │     ├─ 自动扫描所有垃圾评论（status=spam）
+    │     ├─ 逐条删除垃圾评论
+    │     └─ 输出清理统计（发现/删除/失败）
+    │
+    └─ 8. 输出结果日志
           成功：发布 URL
           失败：错误信息（查看 Actions 日志排查）
 ```
@@ -134,6 +152,20 @@ GitHub Actions 触发（定时或手动）
 | 文章字数 | 1800-2500 词（长文 SEO 加权更高） |
 | 标题优化 | 含年份 {year}、明确关键词 |
 | 去重机制 | 同批生成最多 10 次重试避免重复 |
+| 文章配图 | 1-3 张 Pexels 高清图片，策略性插入，SEO alt 文本 + lazy loading |
+| 评论管理 | 自动清理垃圾评论 + Blogger 内置字验证防垃圾 |
+
+### 图片 SEO 策略
+
+| 优化项 | 具体措施 |
+|--------|---------|
+| 语义结构 | `<figure>` + `<img>` + `<figcaption>` 三层语义标签 |
+| Alt 文本 | 使用图片搜索关键词作为描述，利于 Google 图片搜索排名 |
+| 性能优化 | `loading="lazy"` 懒加载 + `auto=compress&cs=tinysrgb` 自动压缩 |
+| CLS 预防 | 固定 width/height 属性，防止布局偏移（Core Web Vitals） |
+| 图片位置 | 第1个H2后（首图）、第3个H2后（中段）、第5个H2后（长文补充） |
+| 图片多样性 | 每篇文章选取不同摄影师的图片，避免视觉单调 |
+| 署名 | figcaption 中附带摄影师链接（增强可信度，利于 E-E-A-T） |
 
 ### 广告位策略（3 个/篇）
 
@@ -171,6 +203,7 @@ AD_ZONE_ID = 229646     ← Monetag zone ID 或 AdSense client ID
 | Google Client ID | GitHub Secrets | `os.environ.get("BLOGGER_CLIENT_ID")` |
 | Blogger Refresh Token | GitHub Secrets | `os.environ.get("BLOGGER_REFRESH_TOKEN")` |
 | Blog ID | GitHub Secrets | `os.environ.get("BLOGGER_BLOG_ID")` |
+| Pexels API Key | GitHub Secrets（可选） | `os.environ.get("PEXELS_API_KEY")` |
 
 **所有密钥均通过环境变量读取，代码中无硬编码。** GitHub Secrets 即使在公开仓库中也加密存储，别人无法查看。
 
@@ -293,6 +326,33 @@ python scripts/generate_article.py 3
 - 登录 https://platform.deepseek.com/top_up
 - 最低充值 5 元（够用约 5 个月）
 
+### 评论设置（一次性操作）
+
+为了实现"自动开放评论 + 屏蔽恶意留言"，需要在 Blogger 后台设置：
+
+1. 打开 https://www.blogger.com → 左侧 **Settings（设置）** → **Posts, comments and sharing**
+2. **Comments（评论）** 设置：
+   - Comment location: **Embedded**（嵌入式，体验最好）
+   - Who can comment: **Anyone**（任何人，最大化互动）
+   - Comment moderation: **Never**（自动发布，无需审核）
+   - Show word verification: **Yes**（开启验证码，防垃圾评论）
+   - Show backlinks: **No**（关闭，避免垃圾链接）
+3. 保存设置
+
+**自动垃圾评论清理**已内置在发布流水线中：每次发布文章后会自动扫描并删除所有 spam 状态评论，无需人工干预。
+
+### Pexels 图片配置（可选）
+
+图片功能**可选**，不配置也不影响文章发布（只是没有图片）：
+
+1. 打开 https://www.pexels.com/api/ 注册（免费，即时批准）
+2. 复制 API Key
+3. 打开 https://github.com/iambuluo/aitoolbits-blogger/settings/secrets/actions
+4. 添加 Secret：`PEXELS_API_KEY` = 你的 API Key
+5. 下次自动发布即生效
+
+**免费额度**：200 次/小时，20,000 次/月（每天 3 篇文章 × 3 张图 = 27 次/天，远远够用）
+
 ---
 
 ## 里程碑规划
@@ -308,6 +368,15 @@ python scripts/generate_article.py 3
 ---
 
 ## 更新日志
+
+### 2026-05-25 - v3.0 图片 + 评论管理
+
+- **文章配图**: 新增 Pexels API 图片获取（1-3 张/篇），策略性插入文章
+- **图片 SEO**: figure 语义标签 + alt 文本 + lazy loading + 宽高防 CLS + 摄影师署名
+- **评论管理**: 新增 comment_manager.py，每次发布后自动清理垃圾评论
+- **Blogger 评论设置**: 指导用户配置自动审批 + 字验证防垃圾
+- **PEXELS_API_KEY**: 新增可选环境变量（不配也可正常运行）
+- **容错设计**: 图片获取失败不影响文章发布，评论清理失败不影响发布结果
 
 ### 2026-05-25 - v2.0 SEO/GEO 全面优化
 

@@ -198,8 +198,28 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
 
     # Generate articles
     print(f"\nGenerating {count} article(s)...")
-    from generate_article import generate_multiple
+    from generate_article import generate_multiple, insert_images
     articles = generate_multiple(count, deepseek_key)
+
+    # Fetch and insert images (requires PEXELS_API_KEY, optional)
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    if pexels_key:
+        print("\nFetching article images...")
+        from image_fetcher import fetch_article_images
+        for article in articles:
+            topic_info = {
+                "title": article["title"],
+                "category": article["category"],
+                "keywords": article["keywords"],
+            }
+            images = fetch_article_images(topic_info, count=3)
+            if images:
+                article["content"] = insert_images(article["content"], images)
+                print(f"  Images added: {len(images)} for \"{article['title'][:40]}...\"")
+            else:
+                print(f"  No images found for: \"{article['title'][:40]}...\"")
+    else:
+        print("\n  No PEXELS_API_KEY set, skipping images (articles will be text-only)")
 
     # Publish with randomized delay between posts
     results = []
@@ -234,6 +254,18 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
         status = "OK" if r["success"] else "FAIL"
         print(f"  [{status}] {r['title']}")
     print(f"{'='*50}")
+
+    # Auto-cleanup spam comments after publishing
+    try:
+        print("\nRunning spam comment cleanup...")
+        from comment_manager import delete_spam_comments
+        spam_stats = delete_spam_comments(access_token, blog_id, dry_run=False)
+        if spam_stats["found"] > 0:
+            print(f"  Spam cleanup: {spam_stats['deleted']}/{spam_stats['found']} deleted")
+        else:
+            print("  No spam comments found")
+    except Exception as e:
+        print(f"  Comment cleanup skipped: {e}")
 
     return results
 
