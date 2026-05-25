@@ -1,0 +1,4 @@
+# No external dependencies required!
+# This project uses only Python standard library (urllib, json, os, etc.)
+# urllib3 is optionally used in CI for better SSL support
+urllib3>=2.0

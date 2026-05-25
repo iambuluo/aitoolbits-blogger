@@ -1,0 +1,63 @@
+name: Auto Publish Blog Articles
+
+on:
+  schedule:
+    # 3 times daily at randomized times via minute offsets
+    # UTC 0:17 = Beijing 8:17AM  (morning article)
+    # UTC 6:42 = Beijing 2:42PM  (afternoon article)
+    # UTC 13:08 = Beijing 9:08PM (evening article)
+    - cron: '17 0 * * *'
+    - cron: '42 6 * * *'
+    - cron: '08 13 * * *'
+  workflow_dispatch:
+    inputs:
+      article_count:
+        description: 'Number of articles to generate and publish'
+        required: false
+        default: '1'
+      is_draft:
+        description: 'Save as draft instead of publishing'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install --quiet urllib3
+
+      - name: Generate and publish articles
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          cd scripts
+          COUNT=${{ github.event.inputs.article_count || '1' }}
+          DRAFT_FLAG=""
+          if [ "${{ github.event.inputs.is_draft }}" = "true" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          # Run the publish pipeline
+          python publish_to_blogger.py $COUNT $DRAFT_FLAG
+
+      - name: Log result
+        if: always()
+        run: |
+          echo "Workflow completed at $(date -u)"
+          echo "Trigger: ${{ github.event_name }}"
