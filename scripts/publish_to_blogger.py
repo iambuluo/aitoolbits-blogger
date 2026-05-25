@@ -16,6 +16,7 @@ def get_access_token(client_id: str, client_secret: str, refresh_token: str) -> 
     """Exchange refresh token for a new access token."""
     import urllib.request
     import urllib.parse
+    import ssl
 
     data = urllib.parse.urlencode({
         "client_id": client_id,
@@ -31,7 +32,9 @@ def get_access_token(client_id: str, client_secret: str, refresh_token: str) -> 
     )
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    # Use system proxy but handle SSL properly
+    ctx = ssl.create_default_context()
+    with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         return result["access_token"]
 
@@ -121,7 +124,9 @@ def publish_article(
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        import ssl
+        ctx = ssl.create_default_context()
+        with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             return {
                 "success": True,
