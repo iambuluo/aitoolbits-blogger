@@ -88,6 +88,7 @@ def publish_article(
     title: str,
     content: str,
     labels: list = None,
+    search_description: str = None,
     is_draft: bool = False,
 ) -> dict:
     """Publish an article to Blogger.
@@ -98,6 +99,7 @@ def publish_article(
         title: Article title
         content: HTML content
         labels: List of label strings
+        search_description: Meta description for SEO (150-160 chars)
         is_draft: If True, save as draft
 
     Returns:
@@ -116,6 +118,9 @@ def publish_article(
         "content": content,
         "labels": labels or [],
     }
+    # Add search description if provided (SEO meta description)
+    if search_description:
+        payload["searchDescription"] = search_description
 
     if is_draft:
         url += "?isDraft=true"
@@ -211,6 +216,7 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
             title=article["title"],
             content=article["content"],
             labels=article["labels"],
+            search_description=article.get("search_description", ""),
             is_draft=is_draft,
         )
         results.append(result)

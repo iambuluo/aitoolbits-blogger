@@ -365,6 +365,218 @@ TOPICS = [
         "keywords": ["AI analytics", "data analysis AI", "business intelligence AI"],
         "type": "list",
     },
+
+    # === AI Image Generation (Extended - Long-tail) ===
+    {
+        "title": "Best AI Headshot Generators: Professional Photos in Minutes",
+        "category": "AI Image Generation",
+        "keywords": ["AI headshot generator", "professional photo AI", "headshot AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI Avatar Generators: Create Your Digital Persona",
+        "category": "AI Image Generation",
+        "keywords": ["AI avatar generator", "digital avatar", "AI profile picture"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Product Photography Tools for E-Commerce",
+        "category": "AI Image Generation",
+        "keywords": ["AI product photography", "e-commerce AI", "product photo AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI Meme Generators: Create Viral Memes with AI",
+        "category": "AI Image Generation",
+        "keywords": ["AI meme generator", "meme maker AI", "funny AI images"],
+        "type": "list",
+    },
+
+    # === AI Video Generation (Extended) ===
+    {
+        "title": "Best AI Video Translators: Dub Videos into Any Language",
+        "category": "AI Video Generation",
+        "keywords": ["AI video translator", "video dubbing AI", "multilingual video"],
+        "type": "list",
+    },
+    {
+        "title": "AI Video Enhancers: Upscale Old Videos to 4K Quality",
+        "category": "AI Video Generation",
+        "keywords": ["AI video enhancer", "video upscaling AI", "video quality AI"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Screen Recorders: Record and Edit with AI",
+        "category": "AI Video Generation",
+        "keywords": ["AI screen recorder", "screen recording AI", "video recording tool"],
+        "type": "list",
+    },
+
+    # === AI Writing (Extended) ===
+    {
+        "title": "Best AI Paraphrasing Tools: Rewrite Content Like a Pro",
+        "category": "AI Writing",
+        "keywords": ["AI paraphrasing tool", "rewriter AI", "content spinner"],
+        "type": "list",
+    },
+    {
+        "title": "AI Story Generators: Write Fiction and Novels with AI",
+        "category": "AI Writing",
+        "keywords": ["AI story generator", "AI novel writing", "fiction AI"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Resume Builders: Land Your Dream Job",
+        "category": "AI Writing",
+        "keywords": ["AI resume builder", "resume AI", "CV generator"],
+        "type": "list",
+    },
+
+    # === AI Coding (Extended) ===
+    {
+        "title": "Best AI Code Review Tools: Catch Bugs Automatically",
+        "category": "AI Coding",
+        "keywords": ["AI code review", "code analysis AI", "bug detection AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI App Builders for Non-Programmers: No-Code Solutions",
+        "category": "AI Coding",
+        "keywords": ["AI app builder", "no-code AI", "app development AI"],
+        "type": "list",
+    },
+
+    # === AI Audio (Extended) ===
+    {
+        "title": "Best AI Audio Enhancers: Clean Up Bad Audio Recordings",
+        "category": "AI Audio",
+        "keywords": ["AI audio enhancer", "audio cleanup AI", "noise reduction AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI Song Cover Generators: Create Cover Versions with AI",
+        "category": "AI Audio",
+        "keywords": ["AI song cover", "AI music cover", "voice clone music"],
+        "type": "list",
+    },
+
+    # === Free AI Tools (Extended - Highest search volume) ===
+    {
+        "title": "Free AI Tools for Teachers: Revolutionize Your Classroom",
+        "category": "Free AI Tools",
+        "keywords": ["AI tools for teachers", "free education AI", "teaching AI"],
+        "type": "list",
+    },
+    {
+        "title": "Best Free AI Photo Editors: No Subscription Required",
+        "category": "Free AI Tools",
+        "keywords": ["free AI photo editor", "photo editing AI", "no cost image editor"],
+        "type": "list",
+    },
+    {
+        "title": "Free AI Website Builders: Create a Site Without Paying",
+        "category": "Free AI Tools",
+        "keywords": ["free AI website builder", "free website AI", "no cost website"],
+        "type": "list",
+    },
+
+    # === AI Marketing (Extended) ===
+    {
+        "title": "Best AI Email Marketing Tools: Boost Open Rates with AI",
+        "category": "AI Marketing",
+        "keywords": ["AI email marketing", "email automation AI", "marketing AI tool"],
+        "type": "list",
+    },
+    {
+        "title": "AI Influencer Marketing Tools: Find the Right Creators",
+        "category": "AI Marketing",
+        "keywords": ["AI influencer marketing", "influencer AI", "creator discovery AI"],
+        "type": "list",
+    },
+
+    # === AI Productivity (Extended) ===
+    {
+        "title": "Best AI Scheduling Assistants: Never Double-Book Again",
+        "category": "AI Productivity",
+        "keywords": ["AI scheduling assistant", "calendar AI", "AI meeting scheduler"],
+        "type": "list",
+    },
+    {
+        "title": "AI Presentation Generators: Create Slideshows in Seconds",
+        "category": "AI Productivity",
+        "keywords": ["AI presentation generator", "AI slideshow", "auto presentation"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Transcription Tools: Convert Audio to Text Instantly",
+        "category": "AI Productivity",
+        "keywords": ["AI transcription", "speech to text AI", "audio transcription tool"],
+        "type": "list",
+    },
+
+    # === AI Design (Extended) ===
+    {
+        "title": "AI Icon Generators: Create App Icons and Logos with AI",
+        "category": "AI Design",
+        "keywords": ["AI icon generator", "app icon AI", "icon design AI"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Font Generators: Create Custom Typography",
+        "category": "AI Design",
+        "keywords": ["AI font generator", "custom font AI", "typography AI"],
+        "type": "list",
+    },
+
+    # === Emerging / Trending (High growth potential) ===
+    {
+        "title": "Best AI Agents in {year}: Autonomous AI That Works for You",
+        "category": "AI Productivity",
+        "keywords": ["AI agents", "autonomous AI", "AI assistant {year}"],
+        "type": "list",
+    },
+    {
+        "title": "AI Search Engines Compared: Perplexity vs You.com vs Bing Chat",
+        "category": "AI Productivity",
+        "keywords": ["AI search engine", "Perplexity AI", "AI search comparison"],
+        "type": "comparison",
+    },
+    {
+        "title": "Best AI Chrome Extensions for Productivity in {year}",
+        "category": "Free AI Tools",
+        "keywords": ["AI Chrome extension", "browser AI", "productivity extension"],
+        "type": "list",
+    },
+    {
+        "title": "AI Data Visualization Tools: Turn Data into Beautiful Charts",
+        "category": "AI Business",
+        "keywords": ["AI data visualization", "chart generator AI", "data viz AI"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI PowerPoint Alternatives: Better Presentations with AI",
+        "category": "AI Design",
+        "keywords": ["AI PowerPoint alternative", "AI presentation", "slide design AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI Background Noise Removal: Crystal Clear Audio for Calls",
+        "category": "AI Audio",
+        "keywords": ["AI noise removal", "background noise AI", "audio cleanup"],
+        "type": "list",
+    },
+    {
+        "title": "Best AI Tools for Freelancers: Boost Your Income in {year}",
+        "category": "AI Business",
+        "keywords": ["AI for freelancers", "freelancer AI tools", "side hustle AI"],
+        "type": "list",
+    },
+    {
+        "title": "AI Legal Tools: How AI Is Changing the Legal Industry",
+        "category": "AI Business",
+        "keywords": ["AI legal tools", "legal AI", "law AI technology"],
+        "type": "list",
+    },
 ]
 
 # Dynamic parameters for title generation
@@ -390,56 +602,63 @@ def get_article_prompt(topic):
 
 Title: {topic['title']}
 Category: {topic['category']}
-Target Keywords: {', '.join(topic['keywords'])}
+Primary Keywords: {', '.join(topic['keywords'])}
 Article Type: {topic['type'].upper()}
 
-REQUIREMENTS:
-1. Length: 1500-2000 words minimum
-2. Use proper HTML format: <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <blockquote>
-3. Include a compelling introduction (2-3 paragraphs)
-4. Break content into clear sections with H2 and H3 headings
-5. Include practical tips, real examples, and actionable advice
-6. Add a conclusion with a call-to-action
-7. Write in a conversational but professional tone
-8. Use short paragraphs (2-4 sentences max) for readability
-9. Include relevant statistics or data points where possible
-10. IMPORTANT: Do NOT use any markdown formatting - use pure HTML tags only
-11. Do NOT include the title as an H1 tag (the blog platform handles that)
-12. Start directly with the first H2 section
+SEO & GEO REQUIREMENTS:
+1. Length: 1800-2500 words minimum (longer = better for SEO)
+2. HTML format: <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <blockquote>, <a>
+3. COMPELLING INTRODUCTION: Hook the reader in 2-3 paragraphs. Address the reader's pain point or question directly. Include the primary keyword naturally in the first 100 words.
+4. STRUCTURE: Clear H2/H3 heading hierarchy. Each H2 section should be 200-400 words.
+5. PRODUCT LINKS: Every AI tool/product mentioned MUST include its official website link on the FIRST mention only. Use format: <a href="https://official-site.com" target="_blank" rel="nofollow noopener">Product Name</a>
+6. PRACTICAL VALUE: Include specific pricing, real feature comparisons, data points, and actionable advice. Never be vague.
+7. LSI KEYWORDS: Naturally weave related terms throughout (e.g., for "AI image generator" include: "text-to-image AI", "AI art generator", "AI image creation", "artificial intelligence art", "machine learning image generation")
+8. CALL-TO-ACTION: End with a meaningful conclusion that answers "what should I do next?"
+9. TONE: Conversational expert. Use "you" and "I". Be opinionated but fair. Short paragraphs (2-3 sentences max).
+10. UNIQUE CONTENT: No filler, no fluff. Every paragraph must add value. Include original analysis, not just feature lists.
+11. FORMAT: Pure HTML only - NO markdown syntax, NO code blocks
+12. NO H1 TAG: The blog platform handles the title. Start directly with the first H2.
 
 """
 
     type_specific = {
         "comparison": """For this comparison article:
-- Create a detailed comparison table near the beginning
-- Cover each tool/product individually with pros and cons
-- Include pricing information for each option
-- End with a clear "Which One Should You Choose?" recommendation section
+- Create a detailed HTML comparison table near the beginning with columns: Tool, Best For, Pricing, Key Feature, Rating
+- Cover each tool/product individually (3-5 paragraphs each) with pros and cons
+- Include the official website link for EVERY product on first mention
+- Include specific pricing tiers (free plan, pro plan, enterprise) with real numbers
+- End with a clear "Which One Should You Choose?" recommendation section with specific use cases
 - Mention at least 5 different tools/products
+- Add a quick-summary box at the end using blockquote for the winner
 """,
         "review": """For this review article:
-- Start with a brief overview of what the tool does
-- Cover key features in detail with examples
-- Discuss pricing and value for money
-- Include pros and cons lists
-- Compare with 2-3 main competitors
-- Give an overall rating or verdict
-- Mention who this tool is best for
+- Start with a brief overview including the official website link
+- Cover key features in detail with real-world use examples
+- Include specific pricing tiers and value-for-money analysis
+- Create detailed pros and cons lists with concrete examples
+- Compare with 2-3 main competitors (include their links too)
+- Give an overall rating (e.g., "8.5/10") with a breakdown by category
+- Include a "Who Should Use This?" section with specific user personas
+- Mention recent updates or version changes if applicable
 """,
         "tutorial": """For this tutorial article:
-- Start with "What You'll Need" section
-- Use numbered step-by-step instructions
-- Include screenshots placeholders (describe what the user should see)
-- Add troubleshooting tips for common issues
-- Include "Pro Tips" callout boxes using blockquote tags
-- End with a FAQ section (at least 5 common questions)
+- Start with "What You'll Need" section (include tool links)
+- Use numbered step-by-step instructions with clear action verbs
+- Include a "Before We Begin" expectations section
+- Add troubleshooting tips for common issues using blockquote tags
+- Include "Pro Tips" callout boxes for advanced users
+- End with a comprehensive FAQ section (at least 5 common questions with answers)
+- Include a "Time & Cost Estimate" section at the beginning
+- Link to all tools/resources mentioned on first mention
 """,
         "list": f"""For this listicle article:
 - Cover at least 8-10 items in your list
-- Each item should have: name, description, key features, pricing, best for
-- Order items from best to worst (or free to paid)
-- Include a comparison summary at the end
-- Highlight the top pick with extra detail
+- Each item MUST have: official name with website link, 2-3 sentence description, key features (bullet list), pricing (specific tiers), "Best for" one-liner
+- Order items from best/recommended to least recommended
+- Include a comparison summary table at the end
+- Highlight the top 3 picks with extra detail and clear reasoning
+- Add a "How to Choose" section before the list with decision criteria
+- Use H3 headings for each item for clear scannability
 """,
     }
 

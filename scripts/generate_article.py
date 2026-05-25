@@ -31,7 +31,28 @@ def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> st
                     "about AI tools and technology. Your writing style is conversational yet "
                     "professional, similar to top tech publications like The Verge or TechCrunch. "
                     "You always include practical examples, actionable advice, and real data. "
-                    "You write in pure HTML format without any markdown syntax."
+                    "You write in pure HTML format without any markdown syntax.\n\n"
+                    "CRITICAL RULES FOR EVERY ARTICLE:\n"
+                    "1. PRODUCT LINKS: Whenever you mention an AI tool, product, or service by name, "
+                    "you MUST include its official website URL as a hyperlink on the first mention. "
+                    "Format: <a href=\"https://example.com\" target=\"_blank\" rel=\"nofollow noopener\">Product Name</a>. "
+                    "Only link to the product's actual official website. If unsure of the URL, "
+                    "use the most commonly known domain (e.g. openai.com for ChatGPT, "
+                    "anthropic.com for Claude, midjourney.com for Midjourney, runwayml.com for Runway, "
+                    "suno.com for Suno AI, notion.so for Notion, figma.com for Figma, "
+                    "canva.com for Canva, vercel.com for Vercel, github.com for GitHub, "
+                    "elevenlabs.io for ElevenLabs, jasper.ai for Jasper, grammarly.com for Grammarly, "
+                    "cursor.com for Cursor, bolt.new for Bolt.new, lovable.dev for Lovable, "
+                    "replit.com for Replit, gamma.app for Gamma, framer.com for Framer, "
+                    "stability.ai for Stable Diffusion, pika.art for Pika, klingai.com for Kling AI).\n"
+                    "2. E-E-A-T: Demonstrate Experience, Expertise, Authoritativeness, and Trustworthiness. "
+                    "Use specific data, version numbers, pricing details, and real-world examples.\n"
+                    "3. ORIGINALITY: Write unique, insightful content. Avoid generic filler. "
+                    "Include personal analysis and opinions based on features.\n"
+                    "4. READABILITY: Use short paragraphs (2-3 sentences), bullet points, "
+                    "and clear H2/H3 hierarchy. Aim for Flesch readability score above 60.\n"
+                    "5. INTERNAL CONTEXT: Write as an independent AI tools reviewer "
+                    "on aitoolbits.blogspot.com, a dedicated AI tools review blog."
                 ),
             },
             {"role": "user", "content": prompt},
@@ -79,8 +100,10 @@ def clean_html(content: str) -> str:
 def insert_ads(content: str, provider: str = None, zone_id: str = None) -> str:
     """Insert ad code into article content.
 
-    Strategy: insert ads after the first H2 section and at the end.
-    This maximizes revenue without hurting readability.
+    Strategy: 3 ad placements for maximum revenue without hurting readability.
+    1. After the 2nd H2 (mid-article, after intro)
+    2. After the 4th H2 (deep mid-article)
+    3. At the end (footer)
 
     Args:
         content: Clean HTML article content
@@ -97,34 +120,78 @@ def insert_ads(content: str, provider: str = None, zone_id: str = None) -> str:
     zone_id = zone_id or os.environ.get("AD_ZONE_ID", "229646")
 
     if provider == "monetag":
-        ad_code = f'<div style="margin:20px 0;text-align:center;"><script src="https://quge5.com/88/tag.min.js" data-zone="{zone_id}" async data-cfasync="false"></script></div>'
+        ad_code = (
+            f'<div style="margin:24px 0;text-align:center;clear:both;">'
+            f'<script src="https://quge5.com/88/tag.min.js" data-zone="{zone_id}" '
+            f'async data-cfasync="false"></script></div>'
+        )
     elif provider == "adsense":
-        client = zone_id  # For AdSense, zone_id stores the ca-pub-XXXX
-        ad_code = f'<div style="margin:20px 0;text-align:center;"><ins class="adsbygoogle" style="display:block" data-ad-client="{client}" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins><script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script></div>'
+        client = zone_id
+        ad_code = (
+            f'<div style="margin:24px 0;text-align:center;clear:both;">'
+            f'<ins class="adsbygoogle" style="display:block" data-ad-client="{client}" '
+            f'data-ad-slot="auto" data-ad-format="auto" '
+            f'data-full-width-responsive="true"></ins>'
+            f'<script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script></div>'
+        )
     else:
         return content
 
-    # Strategy: insert ad after first H2 section (after ~2-3 paragraphs)
+    # Insert ads after specific H2 positions
     lines = content.split("\n")
     result_lines = []
     h2_count = 0
-    inserted_first = False
+    ad_positions = {2, 4}  # Insert after 2nd and 4th H2
+    ads_inserted = 0
 
     for line in lines:
         result_lines.append(line)
-        if line.strip().startswith("<h2") and not inserted_first:
+        if line.strip().startswith("<h2") and h2_count + 1 in ad_positions and ads_inserted < 2:
             h2_count += 1
-            # Insert ad after the SECOND H2 (skip the intro, insert mid-article)
-            if h2_count >= 2:
-                result_lines.append("")
-                result_lines.append(ad_code)
-                result_lines.append("")
-                inserted_first = True
+            result_lines.append("")
+            result_lines.append(ad_code)
+            result_lines.append("")
+            ads_inserted += 1
+        elif line.strip().startswith("<h2"):
+            h2_count += 1
 
-    content_with_first_ad = "\n".join(result_lines)
+    content_with_ads = "\n".join(result_lines)
 
     # Always add footer ad
-    return content_with_first_ad + "\n\n" + ad_code
+    return content_with_ads + "\n\n" + ad_code
+
+
+def _generate_labels(topic: dict) -> list:
+    """Generate smart, SEO-friendly labels for Blogger."""
+    raw_labels = [topic["category"]]
+    for kw in topic["keywords"][:3]:
+        label = kw.title()
+        if len(label) <= 30:
+            raw_labels.append(label)
+    raw_labels.append(f"{topic['type'].title()} Article")
+    # Deduplicate while preserving order
+    seen = set()
+    labels = []
+    for l in raw_labels:
+        if l not in seen:
+            seen.add(l)
+            labels.append(l)
+    return labels[:6]  # Blogger supports max 20, 5-6 is optimal
+
+
+def _generate_search_description(topic: dict) -> str:
+    """Generate an SEO meta description for the article (150-160 chars)."""
+    type_desc = {
+        "comparison": f"Compare the best {topic['category'].lower()} tools. Find out which {topic['keywords'][0]} is right for you with our detailed analysis.",
+        "review": f"Honest review of {topic['title'].replace(' in ' + str(__import__('datetime').datetime.now().year), '')}. Features, pricing, pros & cons, and our verdict.",
+        "tutorial": f"Step-by-step tutorial: {topic['title'].replace(' in ' + str(__import__('datetime').datetime.now().year), '')}. Learn how to get started with practical tips.",
+        "list": f"Discover the top {topic['category'].lower()} tools. Complete list with features, pricing, and recommendations for {topic['keywords'][0]}.",
+    }
+    desc = type_desc.get(topic["type"], f"{topic['title']}. Expert analysis and recommendations.")
+    # Blogger/Blogger search description max ~500 chars, but SEO best is 150-160
+    if len(desc) > 160:
+        desc = desc[:157] + "..."
+    return desc
 
 
 def generate_article(api_key: str = None) -> dict:
@@ -160,7 +227,8 @@ def generate_article(api_key: str = None) -> dict:
         "content": content,
         "category": topic["category"],
         "keywords": topic["keywords"],
-        "labels": [topic["category"], *[k.split()[0] for k in topic["keywords"][:2]]],
+        "search_description": _generate_search_description(topic),
+        "labels": _generate_labels(topic),
         "filename": filename,
     }
 
