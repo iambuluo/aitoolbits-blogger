@@ -170,8 +170,8 @@ def main():
         "BLOGGER_REFRESH_TOKEN": tokens.get("BLOGGER_REFRESH_TOKEN", ""),
         "BLOGGER_BLOG_ID": tokens.get("BLOGGER_BLOG_ID", ""),
         "DEEPSEEK_API_KEY": os.environ.get("DEEPSEEK_API_KEY", ""),
-        "AD_PROVIDER": "none",
-        "AD_ZONE_ID": "",
+        "AD_PROVIDER": "monetag",
+        "AD_ZONE_ID": "229646",
         "PEXELS_API_KEY": pexels_key,
     }
 
