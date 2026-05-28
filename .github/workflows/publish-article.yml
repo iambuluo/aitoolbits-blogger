@@ -84,7 +84,7 @@ jobs:
           BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
           BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          AD_PROVIDER: ${{ secrets.AD_PROVIDER || 'monetag' }}
+          AD_PROVIDER: ${{ secrets.AD_PROVIDER || 'none' }}
           AD_ZONE_ID: ${{ secrets.AD_ZONE_ID || '229646' }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: |

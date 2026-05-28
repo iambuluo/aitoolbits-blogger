@@ -176,7 +176,7 @@ def insert_ads(content: str, provider: str = None, zone_id: str = None) -> str:
     Returns:
         HTML content with ads inserted
     """
-    provider = provider or os.environ.get("AD_PROVIDER", "monetag")
+    provider = provider or os.environ.get("AD_PROVIDER", "none")
     if provider == "none":
         return content
 
