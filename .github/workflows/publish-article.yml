@@ -40,6 +40,15 @@ jobs:
       - name: Install dependencies
         run: pip install --quiet urllib3
 
+      - name: Random delay for natural timing
+        if: github.event_name == 'schedule'
+        run: |
+          MAX_DELAY=$((2 * 3600))  # 2 hours max
+          DELAY=$((RANDOM * RANDOM % $MAX_DELAY))
+          echo "Random delay: $DELAY seconds (~$((DELAY / 60)) minutes)"
+          sleep $DELAY
+          echo "Delay complete, starting publish at $(date -u)"
+
       - name: Verify secrets
         run: |
           echo "=== Secrets Status ==="
