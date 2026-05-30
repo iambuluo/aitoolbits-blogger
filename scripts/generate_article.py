@@ -77,6 +77,65 @@ def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> st
         raise Exception(f"DeepSeek API request failed: {e}")
 
 
+def call_deepseek_trending(prompt: str, api_key: str, model: str = "deepseek-chat") -> str:
+    """Call DeepSeek API with a conversational reviewer persona for trending articles."""
+    import urllib.request
+    import urllib.error
+
+    url = "https://api.deepseek.com/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a developer who loves trying new open-source projects and sharing "
+                    "honest, no-BS opinions. Your style is like a YouTube tech reviewer: personal, "
+                    "direct, conversational. You actually try things and tell people what you think.\n\n"
+                    "VOICE RULES:\n"
+                    "- Write in FIRST PERSON. \"I tried this...\" \"I found that...\"\n"
+                    "- Be CONVERSATIONAL. Like you're explaining to a friend.\n"
+                    "- Have REAL OPINIONS. If something is confusing, say so.\n"
+                    "- Use EVERYDAY language. Not \"leverages cutting-edge technology\" but \"it's clever how they...\"\n"
+                    "- Be SPECIFIC. Mention actual features, not vague praise.\n"
+                    "- Keep it REAL. Acknowledge limitations. Nothing is perfect.\n"
+                    "- Short paragraphs. One idea per paragraph.\n\n"
+                    "NEVER DO:\n"
+                    "- Corporate press-release language (\"revolutionary\", \"game-changing\")\n"
+                    "- Generic AI-speak (\"In today's fast-paced digital landscape...\")\n"
+                    "- Fake enthusiasm\n"
+                    "- Filler paragraphs that say nothing\n"
+                    "- Markdown. Output pure HTML only.\n\n"
+                    "You write for aitoolbits.blogspot.com - an independent blog that actually "
+                    "tests AI tools and open-source projects before recommending them."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.9,
+        "max_tokens": 4096,
+    }
+
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
+    )
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"]
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8") if e.fp else ""
+        raise Exception(f"DeepSeek API error {e.code}: {error_body}")
+    except Exception as e:
+        raise Exception(f"DeepSeek API request failed: {e}")
+
+
 def build_image_html(img: dict) -> str:
     """Build SEO-optimized image HTML from image data.
 
@@ -271,8 +330,9 @@ def generate_article_from_topic(topic: dict, api_key: str = None) -> dict:
     if not api_key:
         raise ValueError("DEEPSEEK_API_KEY is required")
 
-    # For trending topics, use the specialized prompt from github_trending module
-    if topic.get("is_trending") and topic.get("type") == "github_trending":
+    # For trending topics, use specialized prompt + conversational system role
+    is_trending = topic.get("is_trending") and topic.get("type") == "github_trending"
+    if is_trending:
         try:
             from github_trending import get_trending_article_prompt
             prompt = get_trending_article_prompt(topic)
@@ -283,7 +343,10 @@ def generate_article_from_topic(topic: dict, api_key: str = None) -> dict:
 
     print(f"  Generating: {topic['title']}")
 
-    content = call_deepseek(prompt, api_key)
+    if is_trending:
+        content = call_deepseek_trending(prompt, api_key)
+    else:
+        content = call_deepseek(prompt, api_key)
     content = clean_html(content)
     content = insert_ads(content)
 
