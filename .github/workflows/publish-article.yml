@@ -9,8 +9,6 @@ on:
     - cron: '17 0 * * *'
     - cron: '42 6 * * *'
     - cron: '08 13 * * *'
-    # Weekly trending: Monday ~9AM Beijing (UTC 1:00 Monday)
-    - cron: '0 1 * * 1'
   workflow_dispatch:
     inputs:
       article_count:
@@ -22,14 +20,6 @@ on:
         required: false
         type: boolean
         default: false
-      mode:
-        description: 'Article mode: normal or trending'
-        required: false
-        default: 'normal'
-        type: choice
-        options:
-          - normal
-          - trending
 
 jobs:
   publish:
@@ -100,28 +90,16 @@ jobs:
         run: |
           cd scripts
 
-          # Determine mode: trending or normal
-          MODE="${{ github.event.inputs.mode }}"
-          if [ "$MODE" = "trending" ]; then
-            echo "=== TRENDING MODE (manual trigger) ==="
-            COUNT=${1:-1}
-            python publish_trending.py $COUNT --refresh
-          elif [ "$(date +%u)" = "1" ] && [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "=== TRENDING MODE (Monday auto) ==="
-            python publish_trending.py 1 --refresh
-          else
-            echo "=== NORMAL MODE ==="
-            COUNT=${{ github.event.inputs.article_count || '1' }}
-            DRAFT_FLAG=""
-            if [ "${{ github.event.inputs.is_draft }}" = "true" ]; then
-              DRAFT_FLAG="--draft"
-            fi
-            echo "Article count: $COUNT"
-            echo "Draft mode: ${DRAFT_FLAG:-false}"
-            echo "Ad provider: $AD_PROVIDER"
-            echo "Has images: $([ -n "$PEXELS_API_KEY" ] && echo 'YES' || echo 'NO')"
-            python publish_to_blogger.py $COUNT $DRAFT_FLAG
+          echo "=== NORMAL MODE ==="
+          COUNT=${{ github.event.inputs.article_count || '1' }}
+          DRAFT_FLAG=""
+          if [ "${{ github.event.inputs.is_draft }}" = "true" ]; then
+            DRAFT_FLAG="--draft"
           fi
+          echo "Article count: $COUNT"
+          echo "Draft mode: ${DRAFT_FLAG:-false}"
+          echo "Ad provider: $AD_PROVIDER"
+          python publish_to_blogger.py $COUNT $DRAFT_FLAG
 
       - name: Log result
         if: always()
