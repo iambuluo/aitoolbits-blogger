@@ -243,8 +243,8 @@ def get_trending_topics(repos: list[dict]) -> list[dict]:
 
 def get_trending_article_prompt(topic: dict) -> str:
     """
-    Generate a prompt for DeepSeek to write an in-depth article
-    about a trending GitHub repo.
+    Generate a prompt for DeepSeek to write a first-person, hands-on review
+    of a trending GitHub repo - like a YouTube tech reviewer, not a press release.
     
     Args:
         topic: Topic dict with repo info
@@ -254,59 +254,97 @@ def get_trending_article_prompt(topic: dict) -> str:
     """
     repo = topic.get("repo", {})
     repo_name = repo.get("full_name", topic["title"])
+    repo_short = repo.get("name", repo_name)
     description = repo.get("description", "An open-source AI project")
     stars = repo.get("stars", 0)
     language = repo.get("language", "N/A")
     topics_list = repo.get("topics", [])
     topics_str = ", ".join(topics_list[:5]) if topics_list else "N/A"
     homepage = repo.get("homepage", "")
-    
     stars_str = f"{stars:,}" if stars else "many"
+    url = repo.get("html_url", "")
     
-    prompt = f"""You are a tech writer for a blog covering AI tools and open-source projects.
+    prompt = f"""You are a developer who loves trying out new open-source tools and sharing honest opinions. 
+Your writing is like a YouTube tech reviewer - personal, direct, sometimes funny, never boring.
 
-Write a comprehensive, SEO-optimized blog article about the GitHub repository **{repo_name}**.
+Write a blog article about the GitHub project **{repo_name}** as if you actually installed it, played with it, 
+and are now telling a friend what you think.
 
-Here are the facts about this project:
-- Full Name: {repo_name}
+=== PROJECT FACTS (use these accurately) ===
+- Name: {repo_name}
 - Description: {description}
 - Stars: {stars_str}
 - Language: {language}
-- Topics: {topics_str}
-- Homepage: {homepage if homepage else "No separate homepage"}
-- GitHub URL: {repo.get("html_url", "")}
+- Topics/Tags: {topics_str}
+- Homepage: {homepage if homepage else "none"}
+- GitHub: {url}
 
-Article Requirements:
-- Title: "{topic.get('title')}"  
-- Length: 800-1200 words, well-structured with H2 and H3 headings
-- Format: Clean HTML (no <!DOCTYPE>, no <html>, no <body> - just the article body)
-- Do NOT use <h1> tags (the platform handles the title)
-- Use proper semantic HTML: <h2>, <h3>, <p>, <ul>, <li>, <code>, <strong>
+=== YOUR WRITING VOICE ===
+Imagine you're a YouTuber like Fireship or Theo - you actually try things, have opinions, and don't sugarcoat.
+- Write in FIRST PERSON ("I tried this", "I was surprised", "Here's what I found")
+- Be CONVERSATIONAL - like you're talking to a friend at a coffee shop
+- Have REAL OPINIONS - if something is confusing, say it. If something is awesome, say it.
+- Use EVERYDAY LANGUAGE - not "leverages cutting-edge technology", but "it's really clever how they..."
+- Be SPECIFIC - mention actual features, not vague praise
+- Keep it REAL - acknowledge limitations, not everything is perfect
+- Short paragraphs. One idea per paragraph. No walls of text.
 
-Structure:
-1. **Opening hook** (2-3 sentences): Why this repo is gaining attention right now ({stars_str} stars and counting)
-2. **What is {repo.get('name', 'it')}?** (h2): Overview of the project, its purpose, who it's for
-3. **Key Features** (h2): 3-5 standout features with explanations
-4. **Getting Started** (h2): Quick installation guide (one-liner pip/npm install if applicable, or git clone)
-5. **Why It's Trending** (h2): Context about why this project is gaining traction in the AI community
-6. **Who Should Use It** (h2): Target audience - developers, researchers, hobbyists, etc.
-7. **Comparison** (h2): How it compares to similar tools (mention 1-2 alternatives if relevant)
-8. **Bottom Line** (h2): Final verdict, 2-3 sentences
+=== WHAT TO NEVER DO ===
+- NO corporate press-release language ("revolutionary", "game-changing", "cutting-edge solution")
+- NO generic AI-speak ("In today's fast-paced digital landscape...")  
+- NO fake enthusiasm ("This is absolutely incredible!!!")
+- NO filler paragraphs that say nothing
+- NO numbered "5 reasons why..." lists - just tell me what you found
 
-Style Guidelines:
-- Write in a conversational but knowledgeable tone
-- Use short paragraphs (2-4 sentences max)
-- Include practical value: tell the reader WHAT they can build with this
-- Mention the star count naturally (e.g., "With {stars_str} stars on GitHub, {repo.get('name', 'the project')} has clearly resonated with developers...")
-- Link to the GitHub repo naturally in the text: <a href="{repo.get('html_url', '#')}" target="_blank" rel="noopener noreferrer">View on GitHub</a>
-- Add a call-to-action at the end: encourage bookmarking or starring the repo
+=== ARTICLE STRUCTURE ===
 
-SEO Requirements (GEO - Generative Engine Optimization):
-- Naturally include keywords: {repo.get('name', '')}, GitHub trending, AI open source, {language} AI project
-- Write for featured snippets: answer "What is {repo.get('name', '')}?" clearly in the first H2 section
-- Include schema-friendly structure with clear H2/H3 hierarchy
+Title: "{topic.get('title')}"
 
-Return ONLY the HTML article body, nothing else. No markdown, no code fences, no explanations before or after."""
+<h2>So I Checked Out {repo_short}...</h2>
+Open with your first impression. What made you curious about this project? 
+Was it the star count? A recommendation? The problem it solves?
+- 3-4 short paragraphs
+- Keep it personal and genuine
+
+<h2>What It Actually Does</h2>  
+Explain what this project does - but in plain English, not README-speak.
+Imagine explaining to a developer friend: "So basically, it lets you..."
+- 3-5 paragraphs
+- Give a concrete example of what you'd use it for
+
+<h2>The Cool Parts</h2>
+What stood out to you? What made you go "oh that's nice"?
+- 3-5 features, each as a short paragraph with bold sub-headings
+- Be specific: mention actual functionality, not marketing fluff
+- If there's clever tech behind it, mention it briefly
+
+<h2>The Annoying Parts</h2>
+Be honest. What's missing? What's confusing? What would make you hesitate?
+- 2-3 honest criticisms
+- This makes you credible - real reviewers find flaws
+- Frame it as "things to know before you jump in"
+
+<h2>Getting Started (In 30 Seconds)</h2>
+The quickest way to try it. Installation in one line if possible.
+- 2-3 short paragraphs
+- If it's a Python package: pip install ____. If npm: npm install ____
+- Mention any gotchas (needs GPU, requires API key, etc.)
+
+<h2>Is It Worth Your Time?</h2>
+Your honest verdict. Who should use this? Who should skip it?
+- 3-4 paragraphs
+- Compare to 1-2 alternatives very briefly
+- Give a clear "yes/no/it depends" answer
+
+=== FINAL RULES ===
+- Length: 700-1000 words of HTML. Quality over quantity.
+- Format: Pure HTML body - <h2>, <h3>, <p>, <ul>, <li>, <code>, <strong>, <em>, <blockquote>
+- Link: Naturally mention the GitHub link: <a href="{url}" target="_blank" rel="noopener noreferrer">{repo_name}</a>
+- NO <h1> tags. NO markdown. NO code fences. NO explanations before or after.
+- Include the star count naturally: "{stars_str} stars on GitHub" somewhere in the intro
+- End with a casual CTA like "Go star it if this sounds useful" or similar
+
+Now write like a real person who actually tried this thing. Not a press release. Not an AI. Just a dev sharing what they found."""
 
     return prompt
 
