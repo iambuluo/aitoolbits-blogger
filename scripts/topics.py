@@ -651,6 +651,17 @@ SEO & GEO REQUIREMENTS:
 - Include a "Time & Cost Estimate" section at the beginning
 - Link to all tools/resources mentioned on first mention
 """,
+        "github_trending": """For this GitHub Trending article:
+- You are introducing a SPECIFIC GitHub repository that is trending this week
+- The repo details (name, description, stars, URL) will be provided - use them accurately
+- Start with a hook about WHY this repo is gaining attention (mention the star count)
+- Cover: what it does, key features, getting started, why it's trending, who should use it
+- Link to the GitHub repo using: <a href="REPO_URL" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+- Structure with clear H2 sections: What Is It, Key Features, Getting Started, Why It's Trending, Who Should Use It, Bottom Line
+- Include practical value: what can developers BUILD with this?
+- Mention 1-2 alternative/similar repos briefly for context
+- End with a call-to-action encouraging readers to star/bookmark the repo
+""",
         "list": f"""For this listicle article:
 - Cover at least 8-10 items in your list
 - Each item MUST have: official name with website link, 2-3 sentence description, key features (bullet list), pricing (specific tiers), "Best for" one-liner
