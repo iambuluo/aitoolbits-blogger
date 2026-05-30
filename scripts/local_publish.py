@@ -9,6 +9,8 @@ Usage:
   python local_publish.py              # publish 1 article
   python local_publish.py 3            # publish 3 articles
   python local_publish.py 1 --draft    # save as draft only
+  python local_publish.py --trending   # fetch & publish trending repo articles
+  python local_publish.py --trending --list  # list trending repos (no publish)
   python local_publish.py --setup      # first-time OAuth setup
 
 No GitHub Actions needed - everything runs locally.
@@ -102,6 +104,8 @@ def main():
     is_draft = False
     skip_images = False
     no_wait = False
+    trending = False
+    list_only = False
 
     args = sys.argv[1:]
     i = 0
@@ -112,9 +116,22 @@ def main():
             skip_images = True
         elif args[i] == "--now":
             no_wait = True
+        elif args[i] == "--trending":
+            trending = True
+        elif args[i] == "--list":
+            list_only = True
         elif args[i].isdigit():
             count = int(args[i])
         i += 1
+
+    # Handle trending mode
+    if trending:
+        from publish_trending import run_trending_pipeline, list_trending
+        if list_only:
+            list_trending()
+            return
+        results = run_trending_pipeline(count=count, is_draft=is_draft, force_refresh=True)
+        return results
 
     # Optional random delay before starting (like the CI does)
     if not no_wait:
