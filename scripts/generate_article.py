@@ -257,6 +257,64 @@ def _generate_search_description(topic: dict) -> str:
     return desc
 
 
+def generate_article_from_topic(topic: dict, api_key: str = None) -> dict:
+    """Generate an article from a specific topic dict.
+
+    Args:
+        topic: Topic dict with title, category, keywords, type, and optional repo info
+        api_key: DeepSeek API key (or env DEEPSEEK_API_KEY)
+
+    Returns:
+        dict with keys: title, content, category, keywords, filename
+    """
+    api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise ValueError("DEEPSEEK_API_KEY is required")
+
+    # For trending topics, use the specialized prompt from github_trending module
+    if topic.get("is_trending") and topic.get("type") == "github_trending":
+        try:
+            from github_trending import get_trending_article_prompt
+            prompt = get_trending_article_prompt(topic)
+        except ImportError:
+            prompt = get_article_prompt(topic)
+    else:
+        prompt = get_article_prompt(topic)
+
+    print(f"  Generating: {topic['title']}")
+
+    content = call_deepseek(prompt, api_key)
+    content = clean_html(content)
+    content = insert_ads(content)
+
+    # Generate filename from title
+    slug = topic["title"].lower()
+    slug = "".join(c if c.isalnum() or c == " " else "" for c in slug)
+    slug = slug.replace(" ", "-")[:80]
+    slug = slug.strip("-")
+
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"{date_str}-{slug}.html"
+
+    # Keywords: for trending articles, use repo topics
+    if topic.get("is_trending") and topic.get("type") == "github_trending":
+        repo = topic.get("repo", {})
+        keywords = repo.get("topics", topic.get("keywords", ["GitHub", "AI", "trending"]))
+    else:
+        keywords = topic.get("keywords", [])
+
+    return {
+        "title": topic["title"],
+        "content": content,
+        "category": topic.get("category", "GitHub Trending"),
+        "keywords": keywords,
+        "search_description": _generate_search_description(topic),
+        "labels": _generate_labels(topic),
+        "filename": filename,
+        "repo_url": topic.get("repo", {}).get("html_url", ""),
+    }
+
+
 def generate_article(api_key: str = None) -> dict:
     """Generate a complete article ready for publishing.
 
