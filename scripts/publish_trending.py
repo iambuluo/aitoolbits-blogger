@@ -65,7 +65,7 @@ def run_trending_pipeline(count: int = 1, is_draft: bool = False, force_refresh:
         print("Run locally with .env.local or setup_github_secrets.py")
         sys.exit(1)
 
-    # Step 1: Fetch trending repos
+    # Step 1: Fetch trending repos (always fetch a pool of 7, pick from cache)
     print("=" * 60)
     print("GitHub Trending AI Projects Publisher")
     print("=" * 60)
@@ -73,13 +73,18 @@ def run_trending_pipeline(count: int = 1, is_draft: bool = False, force_refresh:
     print("[1/4] Fetching trending AI repos from GitHub...")
     
     use_cache = not force_refresh
-    trending_topics = refresh_trending_pool(limit=count, use_cache=use_cache)
+    # Always fetch a pool of 7 repos, then pick the top 'count' unpublished ones
+    pool_size = max(count, 7)
+    trending_topics = refresh_trending_pool(limit=pool_size, use_cache=use_cache)
 
     if not trending_topics:
         print("ERROR: Failed to fetch trending repos. Check GitHub API availability.")
         sys.exit(1)
 
-    print(f"  Found {len(trending_topics)} trending repos")
+    # Limit to requested count
+    trending_topics = trending_topics[:count]
+
+    print(f"  Pool: {pool_size} repos, publishing top {len(trending_topics)}")
     for i, t in enumerate(trending_topics, 1):
         r = t.get("repo", {})
         print(f"  {i}. {r.get('full_name', 'N/A')} - * {r.get('stars', 0):,}")
