@@ -91,6 +91,13 @@ FALLBACK_IMAGES = {
         "https://images.unsplash.com/photo-1600880292203-757bb62b4baf",
         "https://images.unsplash.com/photo-1553729459-afe8a2a582c0",
     ],
+    "GitHub Trending": [
+        "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb",
+        "https://images.unsplash.com/photo-1556075798-4825dfaaf498",
+        "https://images.unsplash.com/photo-1520085601670-ee14aa5fa072",
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
+        "https://images.unsplash.com/photo-1518770660439-4636190af475",
+    ],
 }
 
 # Generic fallback if no category match
@@ -226,6 +233,7 @@ def get_image_keywords(topic: dict) -> list:
         "Free AI Tools": ["AI applications", "digital tools", "tech workspace"],
         "AI Marketing": ["digital marketing analytics", "social media technology", "SEO analytics"],
         "AI Business": ["business AI technology", "data analytics", "business automation"],
+        "GitHub Trending": ["github open source", "software development community", "code repository"],
     }
 
     keywords = category_map.get(topic.get("category", ""), ["artificial intelligence", "technology innovation"])
