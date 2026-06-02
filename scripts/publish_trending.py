@@ -92,11 +92,17 @@ def run_trending_pipeline(count: int = 1, is_draft: bool = False, force_refresh:
 
     # Step 2: Authenticate with Blogger
     print("[2/4] Authenticating with Blogger API...")
-    from publish_to_blogger import get_access_token
+    from publish_to_blogger import get_access_token, _try_auto_save_refresh_token
+    
+    def _handle_rotation(new_token):
+        print("  🔄 Google rotated the refresh token. Auto-saving...")
+        _try_auto_save_refresh_token(new_token)
+    
     access_token = get_access_token(
         os.environ["BLOGGER_CLIENT_ID"],
         os.environ["BLOGGER_CLIENT_SECRET"],
-        os.environ["BLOGGER_REFRESH_TOKEN"]
+        os.environ["BLOGGER_REFRESH_TOKEN"],
+        on_new_refresh=_handle_rotation,
     )
     print("  Token obtained.")
     print()
