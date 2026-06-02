@@ -151,7 +151,7 @@ def create_auth_url(client_id: str) -> str:
     """Generate the OAuth authorization URL for first-time setup."""
     params = {
         "client_id": client_id,
-        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+        "redirect_uri": "http://localhost",
         "response_type": "code",
         "scope": "https://www.googleapis.com/auth/blogger",
         "access_type": "offline",
@@ -170,7 +170,7 @@ def exchange_code_for_tokens(client_id: str, client_secret: str, code: str) -> d
         "client_id": client_id,
         "client_secret": client_secret,
         "code": code,
-        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+        "redirect_uri": "http://localhost",
         "grant_type": "authorization_code",
     }).encode("utf-8")
 

@@ -1,17 +1,16 @@
 """
-Blogger OAuth Token Refresher
-==============================
-当 BLOGGER_REFRESH_TOKEN 失效（HTTP 400）时运行此脚本。
+Blogger OAuth Token Refresher (Auto)
+=====================================
+当 BLOGGER_REFRESH_TOKEN 失效时运行此脚本，全自动完成：
+1. 本地起 HTTP 服务器捕获 OAuth 回调
+2. 打开浏览器授权 Google 账号
+3. 自动提取授权码、换取新 refresh_token
+4. 更新本地 blogger_tokens.json
+5. 推送到 GitHub Actions Secret
 
-步骤：
-1. 读取 blogger_tokens.json 中的 client_id / client_secret
-2. 打开浏览器让你重新授权 Google 账号
-3. 用授权码换取新的 refresh_token
-4. 更新 blogger_tokens.json
-5. 自动把新 token 推送到 GitHub Actions Secret
-
-Usage:
-    cd D:\\小程序\\aitoolbits-blogger
+Usage（设置好 GITHUB_TOKEN 后直接运行）：
+    $env:GITHUB_TOKEN="ghp_xxxx"
+    cd D:\小程序\aitoolbits-blogger
     python scripts/refresh_blogger_token.py
 """
 
@@ -22,14 +21,59 @@ import webbrowser
 import urllib.request
 import urllib.parse
 import ssl
+import threading
+import time
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TOKENS_FILE = PROJECT_ROOT / "blogger_tokens.json"
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")  # set via env: $env:GITHUB_TOKEN="your_pat"
+# 本地回调服务器端口
+PORT = 8080
+REDIRECT_URI = f"http://localhost:{PORT}"
+
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REPO_OWNER = "iambuluo"
 REPO_NAME = "aitoolbits-blogger"
+
+# 全局变量：收到回调后存储授权码
+auth_code = None
+auth_event = threading.Event()
+
+
+class OAuthHandler(BaseHTTPRequestHandler):
+    """处理 Google OAuth 回调：提取 code 参数"""
+
+    def do_GET(self):
+        global auth_code
+
+        parsed = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+
+        if "code" in params:
+            auth_code = params["code"][0]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write("""
+            <html><body style="font-family: Arial, sans-serif; text-align: center; padding-top: 80px;">
+            <h2 style="color: #34A853;">授权成功 ✓</h2>
+            <p>正在自动更新 Refresh Token...</p>
+            <p style="color: #999;">可以关闭此页面了</p>
+            </body></html>
+            """.encode())
+            auth_event.set()
+        else:
+            error = params.get("error", ["unknown error"])[0]
+            self.send_response(400)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(f"<h2>授权失败</h2><p>{error}</p>".encode())
+            auth_event.set()
+
+    def log_message(self, format, *args):
+        pass  # 不打印 HTTP 日志
 
 
 def load_tokens():
@@ -49,11 +93,11 @@ def save_tokens(tokens: dict):
 def get_auth_url(client_id: str) -> str:
     params = {
         "client_id": client_id,
-        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+        "redirect_uri": REDIRECT_URI,
         "response_type": "code",
         "scope": "https://www.googleapis.com/auth/blogger",
         "access_type": "offline",
-        "prompt": "consent",  # force new refresh_token
+        "prompt": "consent",
     }
     return f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
 
@@ -63,7 +107,7 @@ def exchange_code(client_id: str, client_secret: str, code: str) -> dict:
         "client_id": client_id,
         "client_secret": client_secret,
         "code": code,
-        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+        "redirect_uri": REDIRECT_URI,
         "grant_type": "authorization_code",
     }).encode("utf-8")
 
@@ -134,8 +178,10 @@ def update_github_secret(name: str, value: str):
 
 
 def main():
+    global auth_code
+
     print("=" * 55)
-    print("  Blogger OAuth Token Refresher")
+    print("  Blogger OAuth Token Refresher (Auto)")
     print("=" * 55)
     print()
 
@@ -151,28 +197,42 @@ def main():
     print(f"Client ID: {client_id[:30]}...")
     print()
 
-    # Step 1: Open browser for re-auth
+    # 启动本地 HTTP 服务器捕获回调
+    print(f"Starting local callback server on http://localhost:{PORT} ...")
+    server = HTTPServer(("127.0.0.1", PORT), OAuthHandler)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    time.sleep(0.5)
+
+    # 打开浏览器
     auth_url = get_auth_url(client_id)
-    print("Step 1: Opening browser for Google authorization...")
     print()
-    print(f"  URL: {auth_url}")
+    print("Opening browser for Google authorization...")
+    print(f"  Redirect: {REDIRECT_URI}")
     print()
     webbrowser.open(auth_url)
 
-    print("  A browser window should have opened.")
-    print("  Log in with your Google account (the one that owns aitoolbits.blogspot.com)")
-    print("  Click 'Allow', then copy the authorization code shown on the page.")
+    print("  Waiting for authorization... (timeout: 120s)")
     print()
 
-    code = input("  Paste the authorization code here: ").strip()
-    if not code:
-        print("No code entered. Aborting.")
+    # 等用户授权
+    if not auth_event.wait(timeout=120):
+        print("ERROR: Authorization timeout! No response in 120 seconds.")
+        server.shutdown()
         sys.exit(1)
 
-    # Step 2: Exchange code for tokens
+    server.shutdown()
+
+    if not auth_code:
+        print("ERROR: No authorization code received!")
+        sys.exit(1)
+
+    print("  Authorization code received!")
     print()
-    print("Step 2: Exchanging code for new tokens...")
-    result = exchange_code(client_id, client_secret, code)
+
+    # 兑换 token
+    print("Exchanging code for new tokens...")
+    result = exchange_code(client_id, client_secret, auth_code)
 
     new_refresh_token = result.get("refresh_token", "")
     access_token = result.get("access_token", "")
@@ -184,28 +244,35 @@ def main():
 
     print(f"  New refresh_token: {new_refresh_token[:20]}...")
     print(f"  Access token: {access_token[:20]}...")
-
-    # Step 3: Update blogger_tokens.json
     print()
-    print("Step 3: Updating blogger_tokens.json...")
+
+    # 更新本地文件
+    print("Updating blogger_tokens.json...")
     tokens["BLOGGER_REFRESH_TOKEN"] = new_refresh_token
     save_tokens(tokens)
-
-    # Step 4: Push to GitHub Secret
     print()
-    print("Step 4: Pushing new token to GitHub Actions Secret...")
-    ok = update_github_secret("BLOGGER_REFRESH_TOKEN", new_refresh_token)
+
+    # 推送到 GitHub
+    if GITHUB_TOKEN:
+        print("Pushing new token to GitHub Actions Secret...")
+        ok = update_github_secret("BLOGGER_REFRESH_TOKEN", new_refresh_token)
+    else:
+        print("WARNING: GITHUB_TOKEN env var not set. Skipping GitHub Secret update.")
+        print("Set it first: $env:GITHUB_TOKEN=\"ghp_xxxx\"")
+        ok = False
 
     print()
     print("=" * 55)
     if ok:
-        print("  Done! New refresh token is active.")
+        print("  Done! New refresh token is active (production mode).")
         print()
-        print("  Next: Go to GitHub Actions and re-run the failed workflow:")
+        print("  Workflows should now run without re-auth.")
         print("  https://github.com/iambuluo/aitoolbits-blogger/actions")
     else:
-        print("  Token saved locally but GitHub Secret update failed.")
-        print("  Please manually update BLOGGER_REFRESH_TOKEN in GitHub Secrets.")
+        print("  Token saved locally.")
+        print("  Run again with GITHUB_TOKEN set to push to GitHub:")
+        print("    $env:GITHUB_TOKEN=\"ghp_xxxx\"")
+        print("    python scripts/refresh_blogger_token.py")
     print("=" * 55)
 
 

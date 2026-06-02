@@ -18,7 +18,7 @@ except ImportError:
 
 # OAuth configuration
 SCOPES = "https://www.googleapis.com/auth/blogger"
-REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+REDIRECT_URI = "http://localhost"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 BLOGGER_API_URL = "https://www.googleapis.com/blogger/v3/blogs/byurl"
