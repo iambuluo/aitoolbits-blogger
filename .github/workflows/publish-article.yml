@@ -87,6 +87,7 @@ jobs:
           AD_PROVIDER: ${{ secrets.AD_PROVIDER || 'none' }}
           AD_ZONE_ID: ${{ secrets.AD_ZONE_ID || '229646' }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || '' }}
         run: |
           cd scripts
 
