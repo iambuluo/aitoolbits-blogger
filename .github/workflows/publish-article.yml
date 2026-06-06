@@ -42,8 +42,9 @@ jobs:
 
       - name: Random delay for natural timing
         if: github.event_name == 'schedule'
+        timeout-minutes: 20
         run: |
-          MAX_DELAY=$((2 * 3600))  # 2 hours max
+          MAX_DELAY=$((20 * 60))  # 20 minutes max
           DELAY=$((RANDOM * RANDOM % $MAX_DELAY))
           echo "Random delay: $DELAY seconds (~$((DELAY / 60)) minutes)"
           sleep $DELAY
