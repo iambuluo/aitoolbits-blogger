@@ -372,6 +372,11 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
         print(f"  [{status}] {r['title']}")
     print(f"{'='*50}")
 
+    # Fail the workflow if no articles were published
+    if success_count == 0:
+        print("\nERROR: No articles were published successfully!")
+        sys.exit(1)
+
     # Auto-cleanup spam comments after publishing
     try:
         print("\nRunning spam comment cleanup...")

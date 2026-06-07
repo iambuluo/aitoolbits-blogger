@@ -181,6 +181,11 @@ def run_trending_pipeline(count: int = 1, is_draft: bool = False, force_refresh:
         print(f"  [{status}] {r['title'][:80]}")
     print("=" * 60)
 
+    # Fail the workflow if no articles were published
+    if success == 0:
+        print("\nERROR: No articles were published successfully!")
+        sys.exit(1)
+
     # Mark successful repos as published (avoid repeats)
     if success > 0:
         try:
