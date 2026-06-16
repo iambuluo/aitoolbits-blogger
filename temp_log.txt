@@ -1,0 +1,74 @@
+﻿2026-05-30T03:55:26.3317150Z ##[group]Run cd scripts
+2026-05-30T03:55:26.3318341Z [36;1mcd scripts[0m
+2026-05-30T03:55:26.3319361Z [36;1m[0m
+2026-05-30T03:55:26.3320394Z [36;1m# Determine mode: trending or normal[0m
+2026-05-30T03:55:26.3321804Z [36;1mMODE="trending"[0m
+2026-05-30T03:55:26.3322986Z [36;1mif [ "$MODE" = "trending" ]; then[0m
+2026-05-30T03:55:26.3324486Z [36;1m  echo "=== TRENDING MODE (manual trigger) ==="[0m
+2026-05-30T03:55:26.3325957Z [36;1m  COUNT=${1:-1}[0m
+2026-05-30T03:55:26.3327558Z [36;1m  python publish_trending.py $COUNT --refresh[0m
+2026-05-30T03:55:26.3329458Z [36;1melif [ "$(date +%u)" = "1" ] && [ "workflow_dispatch" = "schedule" ]; then[0m
+2026-05-30T03:55:26.3331381Z [36;1m  echo "=== TRENDING MODE (Monday auto) ==="[0m
+2026-05-30T03:55:26.3332942Z [36;1m  python publish_trending.py 1 --refresh[0m
+2026-05-30T03:55:26.3334328Z [36;1melse[0m
+2026-05-30T03:55:26.3335295Z [36;1m  echo "=== NORMAL MODE ==="[0m
+2026-05-30T03:55:26.3336493Z [36;1m  COUNT=1[0m
+2026-05-30T03:55:26.3337639Z [36;1m  DRAFT_FLAG=""[0m
+2026-05-30T03:55:26.3338744Z [36;1m  if [ "false" = "true" ]; then[0m
+2026-05-30T03:55:26.3340008Z [36;1m    DRAFT_FLAG="--draft"[0m
+2026-05-30T03:55:26.3341152Z [36;1m  fi[0m
+2026-05-30T03:55:26.3342126Z [36;1m  echo "Article count: $COUNT"[0m
+2026-05-30T03:55:26.3343538Z [36;1m  echo "Draft mode: ${DRAFT_FLAG:-false}"[0m
+2026-05-30T03:55:26.3345023Z [36;1m  echo "Ad provider: $AD_PROVIDER"[0m
+2026-05-30T03:55:26.3346937Z [36;1m  echo "Has images: $([ -n "$PEXELS_API_KEY" ] && echo 'YES' || echo 'NO')"[0m
+2026-05-30T03:55:26.3349003Z [36;1m  python publish_to_blogger.py $COUNT $DRAFT_FLAG[0m
+2026-05-30T03:55:26.3350463Z [36;1mfi[0m
+2026-05-30T03:55:26.3377256Z shell: /usr/bin/bash -e {0}
+2026-05-30T03:55:26.3378349Z env:
+2026-05-30T03:55:26.3379296Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+2026-05-30T03:55:26.3380869Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+2026-05-30T03:55:26.3382802Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+2026-05-30T03:55:26.3384804Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+2026-05-30T03:55:26.3386591Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+2026-05-30T03:55:26.3388503Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+2026-05-30T03:55:26.3390310Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+2026-05-30T03:55:26.3392750Z   BLOGGER_CLIENT_ID: ***
+2026-05-30T03:55:26.3394170Z   BLOGGER_CLIENT_SECRET: ***
+2026-05-30T03:55:26.3396961Z   BLOGGER_REFRESH_TOKEN: ***
+2026-05-30T03:55:26.3398165Z   BLOGGER_BLOG_ID: ***
+2026-05-30T03:55:26.3399426Z   DEEPSEEK_API_KEY: ***
+2026-05-30T03:55:26.3400493Z   AD_PROVIDER: none
+2026-05-30T03:55:26.3401460Z   AD_ZONE_ID: 229646
+2026-05-30T03:55:26.3403046Z   PEXELS_API_KEY: ***
+2026-05-30T03:55:26.3404056Z ##[endgroup]
+2026-05-30T03:55:26.3468599Z === TRENDING MODE (manual trigger) ===
+2026-05-30T03:55:42.4839874Z ============================================================
+2026-05-30T03:55:42.4840804Z GitHub Trending AI Projects Publisher
+2026-05-30T03:55:42.4841290Z ============================================================
+2026-05-30T03:55:42.4841602Z 
+2026-05-30T03:55:42.4841805Z [1/4] Fetching trending AI repos from GitHub...
+2026-05-30T03:55:42.4842333Z [FETCH] Fetching trending AI repos from GitHub...
+2026-05-30T03:55:42.4842834Z [DONE] Fetched 8 repos, returning top 1
+2026-05-30T03:55:42.4843269Z   Found 1 trending repos
+2026-05-30T03:55:42.4843631Z   1. f/prompts.chat - * 163,038
+2026-05-30T03:55:42.4843837Z 
+2026-05-30T03:55:42.4843980Z [2/4] Authenticating with Blogger API...
+2026-05-30T03:55:42.4844311Z   Token obtained.
+2026-05-30T03:55:42.4844734Z 
+2026-05-30T03:55:42.4844877Z [3/4] Generating 1 trending article(s)...
+2026-05-30T03:55:42.4845213Z   [1/1] f/prompts.chat
+2026-05-30T03:55:42.4845630Z   Generating: prompts.chat: The AI Repo Gaining 163,038+ Stars This Week
+2026-05-30T03:55:42.4846085Z     OK: 6809 chars
+2026-05-30T03:55:42.4846237Z 
+2026-05-30T03:55:42.4846351Z   Adding images...
+2026-05-30T03:55:42.4847427Z     2 images -> "prompts.chat: The AI Repo Gaining 163,038+ Stars T..."
+2026-05-30T03:55:42.4847857Z 
+2026-05-30T03:55:42.4847996Z [4/4] Publishing to Blogger...
+2026-05-30T03:55:42.4848462Z   [1/1] Publishing: prompts.chat: The AI Repo Gaining 163,038+ Stars This Week...
+2026-05-30T03:55:42.4849204Z     OK: https://aitoolbits.blogspot.com/2026/05/promptschat-ai-repo-gaining-163038.html
+2026-05-30T03:55:42.4849618Z 
+2026-05-30T03:55:42.4849763Z ============================================================
+2026-05-30T03:55:42.4850122Z Published: 1/1
+2026-05-30T03:55:42.4850469Z   [OK] prompts.chat: The AI Repo Gaining 163,038+ Stars This Week
+2026-05-30T03:55:42.4850919Z ============================================================
+2026-05-30T03:55:42.4851315Z   Marked as published: f/prompts.chat

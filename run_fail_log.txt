@@ -1,0 +1,77 @@
+ ##[group]Run cd scripts
+[36;1mcd scripts[0m
+[36;1m[0m
+[36;1mCOUNT="1"[0m
+[36;1mREFRESH_FLAG=""[0m
+[36;1mif [ "" = "true" ]; then[0m
+[36;1m  REFRESH_FLAG="--refresh"[0m
+[36;1mfi[0m
+[36;1m[0m
+[36;1mecho "=== DAILY TRENDING MODE ==="[0m
+[36;1mecho "Articles to publish: $COUNT"[0m
+[36;1mecho "Force refresh: ${REFRESH_FLAG:-no}"[0m
+[36;1mecho ""[0m
+[36;1m[0m
+[36;1mpython publish_trending.py $COUNT $REFRESH_FLAG[0m
+shell: /usr/bin/bash -e {0}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  pythonLocation: /opt/hostedtoolcache/Python/3.12.13/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.13/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.13/x64/lib
+  BLOGGER_CLIENT_ID: ***
+  BLOGGER_CLIENT_SECRET: ***
+  BLOGGER_REFRESH_TOKEN: ***
+  BLOGGER_BLOG_ID: ***
+  DEEPSEEK_API_KEY: ***
+  AD_PROVIDER: none
+  AD_ZONE_ID: 229646
+##[endgroup]
+=== DAILY TRENDING MODE ===
+Articles to publish: 1
+Force refresh: no
+2026-06-01T07:44:57.2692709Z 
+Traceback (most recent call last):
+  File "/home/runner/work/aitoolbits-blogger/aitoolbits-blogger/scripts/publish_trending.py", line 240, in <module>
+============================================================
+GitHub Trending AI Projects Publisher
+    main()
+  File "/home/runner/work/aitoolbits-blogger/aitoolbits-blogger/scripts/publish_trending.py", line 236, in main
+    run_trending_pipeline(count=count, is_draft=is_draft, force_refresh=force_refresh)
+  File "/home/runner/work/aitoolbits-blogger/aitoolbits-blogger/scripts/publish_trending.py", line 96, in run_trending_pipeline
+    access_token = get_access_token(
+                   ^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/aitoolbits-blogger/aitoolbits-blogger/scripts/publish_to_blogger.py", line 37, in get_access_token
+    with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 215, in urlopen
+============================================================
+2026-06-01T07:45:05.6179690Z 
+[1/4] Fetching trending AI repos from GitHub...
+[FETCH] Fetching trending AI repos from GitHub...
+[DONE] Fetched 26 repos, returning top 7
+  Pool: 7 repos, publishing top 1
+  1. affaan-m/ECC - * 201,132
+2026-06-01T07:45:05.6181193Z 
+[2/4] Authenticating with Blogger API...
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+##[error]Process completed with exit code 1.

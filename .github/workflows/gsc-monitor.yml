@@ -1,0 +1,71 @@
+name: GSC Indexing Monitor (Every 3 Days)
+
+on:
+  schedule:
+    # Every 3 days at UTC 10:00 = Beijing 18:00
+    - cron: '0 10 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  check-indexing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: echo "No additional dependencies needed"
+
+      - name: Verify secrets
+        run: |
+          echo "=== Secrets Status ==="
+          if [ -z "${{ secrets.SERVER_CHAN_KEY }}" ]; then
+            echo "  SERVER_CHAN_KEY: MISSING"
+            echo ""
+            echo "WARNING: SERVER_CHAN_KEY is not configured."
+            echo "Please add it to GitHub Actions secrets."
+            echo "Visit: https://github.com/$GITHUB_REPOSITORY/settings/secrets/actions"
+            exit 1
+          fi
+          echo "  SERVER_CHAN_KEY: OK"
+          echo "  BLOGGER_REFRESH_TOKEN: OK"
+          echo "  BLOGGER_CLIENT_ID: OK"
+          echo "  BLOGGER_CLIENT_SECRET: OK"
+          echo "  BLOGGER_BLOG_ID: OK"
+
+      - name: Run GSC monitoring script
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          SERVER_CHAN_KEY: ${{ secrets.SERVER_CHAN_KEY }}
+        run: |
+          echo "=== GSC Indexing Monitor ==="
+          echo "Running at $(date -u)"
+          echo ""
+          cd scripts
+          python check_gsc_indexing.py
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gsc-report
+          path: gsc_report.txt
+          retention-days: 30
+
+      - name: Log result
+        if: always()
+        run: |
+          echo "GSC Monitor workflow completed at $(date -u)"
+          echo "Trigger: ${{ github.event_name }}"

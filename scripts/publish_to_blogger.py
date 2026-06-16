@@ -360,6 +360,12 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
 
         if result["success"]:
             print(f"  Published: {result['url']}")
+            # Track this published article for anti-duplicate protection
+            try:
+                from published_urls import add_published_url
+                add_published_url(title=result["title"], url=result["url"])
+            except Exception as e:
+                print(f"  ⚠ Failed to track published URL: {e}")
         else:
             print(f"  FAILED: {result['error']}")
 

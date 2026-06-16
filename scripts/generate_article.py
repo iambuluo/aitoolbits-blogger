@@ -11,6 +11,12 @@ from datetime import datetime
 from topics import get_random_topic, get_article_prompt
 
 
+def _is_duplicate(title: str) -> bool:
+    """Quick in-memory duplicate check against published titles."""
+    from published_urls import check_if_duplicate
+    return check_if_duplicate(title)["duplicate"]
+
+
 def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> str:
     """Call DeepSeek API to generate article content."""
     import urllib.request
@@ -330,6 +336,11 @@ def generate_article_from_topic(topic: dict, api_key: str = None) -> dict:
     if not api_key:
         raise ValueError("DEEPSEEK_API_KEY is required")
 
+    # Pre-flight duplicate check BEFORE calling the API
+    if _is_duplicate(topic["title"]):
+        print(f"  ⚠ SKIP: Title '{topic['title']}' is a known duplicate")
+        raise ValueError("DUPLICATE_TOPIC")
+
     # For trending topics, use specialized prompt + conversational system role
     is_trending = topic.get("is_trending") and topic.get("type") == "github_trending"
     if is_trending:
@@ -366,12 +377,18 @@ def generate_article_from_topic(topic: dict, api_key: str = None) -> dict:
     else:
         keywords = topic.get("keywords", [])
 
+    search_desc = _generate_search_description(topic)
+    
+    # Enhance search description if topic has custom SEO prompt
+    if topic.get("search_description"):
+        search_desc = topic["search_description"]
+    
     return {
         "title": topic["title"],
         "content": content,
         "category": topic.get("category", "GitHub Trending"),
         "keywords": keywords,
-        "search_description": _generate_search_description(topic),
+        "search_description": search_desc,
         "labels": _generate_labels(topic),
         "filename": filename,
         "repo_url": topic.get("repo", {}).get("html_url", ""),
@@ -392,6 +409,11 @@ def generate_article(api_key: str = None) -> dict:
     prompt = get_article_prompt(topic)
 
     print(f"  Generating: {topic['title']}")
+
+    # Pre-flight duplicate check BEFORE calling the API
+    if _is_duplicate(topic["title"]):
+        print(f"  ⚠ SKIP: Title '{topic['title']}' is a known duplicate")
+        raise ValueError("DUPLICATE_TOPIC")
 
     content = call_deepseek(prompt, api_key)
     content = clean_html(content)
@@ -422,15 +444,27 @@ def generate_multiple(count: int = 1, api_key: str = None) -> list:
     articles = []
     used_titles = set()
     for i in range(count):
-        for _ in range(10):  # Max 10 retries to avoid duplicate titles
-            article = generate_article(api_key)
-            if article["title"] not in used_titles:
-                used_titles.add(article["title"])
-                articles.append(article)
-                print(f"  [{i+1}/{count}] Done: {article['filename']}")
-                break
-        else:
-            print(f"  [{i+1}/{count}] Skipped (duplicate title)")
+        generated = False
+        attempts = 0
+        while not generated and attempts < 15:
+            attempts += 1
+            try:
+                article = generate_article(api_key)
+                if article["title"] not in used_titles:
+                    used_titles.add(article["title"])
+                    articles.append(article)
+                    generated = True
+                    print(f"  [{i+1}/{count}] Done: {article['filename']} (attempt {attempts})")
+            except ValueError as e:
+                if str(e) == "DUPLICATE_TOPIC":
+                    continue
+                raise
+            except Exception as e:
+                # Unexpected error, stop
+                print(f"  [{i+1}/{count}] Error: {e}")
+                raise
+        if not generated:
+            print(f"  [{i+1}/{count}] Skipped (too many duplicate attempts)")
     return articles
 
 
