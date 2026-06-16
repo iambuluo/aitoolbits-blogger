@@ -1,0 +1,81 @@
+name: Sync Existing Blogger Articles
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not save changes)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install --quiet urllib3
+
+      - name: Verify secrets
+        run: |
+          echo "=== Secrets Status ==="
+          for SECRET in BLOGGER_CLIENT_ID BLOGGER_CLIENT_SECRET BLOGGER_REFRESH_TOKEN; do
+            if [ -n "${!SECRET}" ]; then
+              echo "  $SECRET: OK"
+            else
+              echo "  $SECRET: MISSING"
+              exit 1
+            fi
+          done
+
+      - name: Sync existing articles
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: |
+          cd scripts
+          python sync_existing_articles.py
+
+      - name: Save published_urls.json
+        if: success() && !inputs.dry_run
+        run: |
+          if [ -f scripts/published_urls.json ]; then
+            cp scripts/published_urls.json ../data/published_urls.json
+            echo "=== Published URLs Count ==="
+            python3 -c "import json; d=json.load(open('data/published_urls.json')); print(f'{len(d[\"urls\"])} articles tracked')"
+          fi
+
+      - name: Commit and push changes
+        if: success() && !inputs.dry_run
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/published_urls.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync existing Blogger articles to published_urls.json [skip ci]"
+            git push origin main
+            echo "Changes pushed to main branch"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-urls-db
+          path: data/published_urls.json
