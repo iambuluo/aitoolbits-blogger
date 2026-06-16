@@ -48,10 +48,8 @@ def get_indexing_status(access_token, blog_id, max_results=100):
     """Check latest posts status via Blogger API."""
     url = f"https://www.googleapis.com/blogger/v3/blogs/{blog_id}/posts"
     params = {
-        "accessToken": access_token,
         "maxResults": max_results,
-        "fetchThreads": "MULTIPLE_POST",
-        "sortBy": "PUBLISHED",
+        "sortBy": "published",
         "sortOrder": "descending",
     }
     
@@ -127,18 +125,31 @@ def main():
     print("GSC索引监控脚本 - 检查博客收录情况")
     print("=" * 60)
     
-    # Load configuration
+    # Load configuration - prefer environment variables (CI) over local file
     print("\n[1/3] 加载配置...")
-    tokens = get_blogger_tokens()
-    blog_id = tokens.get("blog_id", "")
+    
+    blog_id = os.environ.get("BLOGGER_BLOG_ID", "")
+    client_id = os.environ.get("BLOGGER_CLIENT_ID", "")
+    client_secret = os.environ.get("BLOGGER_CLIENT_SECRET", "")
+    refresh_token = os.environ.get("BLOGGER_REFRESH_TOKEN", "")
+    
+    if not blog_id:
+        # Fallback: load from local file (for manual testing)
+        print("  ENV vars not set, loading from blogger_tokens.json...")
+        tokens = get_blogger_tokens()
+        blog_id = tokens.get("blog_id", "")
+        client_id = tokens.get("client_id", "")
+        client_secret = tokens.get("client_secret", "")
+        refresh_token = tokens.get("refresh_token", "")
+    
     print(f"  Blog ID: {blog_id}")
     
     # Get access token
     print("\n[2/3] 获取访问令牌...")
     config = {
-        "client_id": tokens.get("client_id", ""),
-        "client_secret": tokens.get("client_secret", ""),
-        "refresh_token": tokens.get("refresh_token", ""),
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
     }
     access_token = get_access_token(config)
     if not access_token:
