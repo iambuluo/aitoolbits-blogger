@@ -16,14 +16,14 @@ def get_blogger_tokens():
         return json.load(f)
 
 
-def get_access_token(config):
+def get_access_token(client_id, client_secret, refresh_token):
     """Get access token for Blogger API."""
     import ssl
     
     data = urllib.parse.urlencode({
-        "client_id": config.get("client_id", ""),
-        "client_secret": config.get("client_secret", ""),
-        "refresh_token": config.get("refresh_token", ""),
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
         "grant_type": "refresh_token",
     }).encode("utf-8")
     
@@ -46,6 +46,7 @@ def get_access_token(config):
 
 def get_indexing_status(access_token, blog_id, max_results=100):
     """Check latest posts status via Blogger API."""
+    import ssl
     url = f"https://www.googleapis.com/blogger/v3/blogs/{blog_id}/posts"
     params = {
         "maxResults": max_results,
@@ -137,21 +138,14 @@ def main():
         # Fallback: load from local file (for manual testing)
         print("  ENV vars not set, loading from blogger_tokens.json...")
         tokens = get_blogger_tokens()
-        blog_id = tokens.get("blog_id", "")
-        client_id = tokens.get("client_id", "")
-        client_secret = tokens.get("client_secret", "")
-        refresh_token = tokens.get("refresh_token", "")
+        blog_id = tokens.get("BLOGGER_BLOG_ID", "")
+        client_id = tokens.get("BLOGGER_CLIENT_ID", "")
+        client_secret = tokens.get("BLOGGER_CLIENT_SECRET", "")
+        refresh_token = tokens.get("BLOGGER_REFRESH_TOKEN", "")
     
     print(f"  Blog ID: {blog_id}")
     
-    # Get access token
-    print("\n[2/3] 获取访问令牌...")
-    config = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "refresh_token": refresh_token,
-    }
-    access_token = get_access_token(config)
+    access_token = get_access_token(client_id, client_secret, refresh_token)
     if not access_token:
         print("错误: 无法获取access_token")
         return
@@ -194,7 +188,10 @@ def main():
     print("发送微信推送...")
     print("=" * 60)
     sendkey = os.environ.get("SERVER_CHAN_KEY", "")
-    send_to_serverchan(report, sendkey)
+    if sendkey:
+        send_to_serverchan(report, sendkey)
+    else:
+        print("Server酱未配置，跳过微信推送")
     
     print("\n✅ 监控检查完成!")
 

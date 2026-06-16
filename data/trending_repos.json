@@ -1,0 +1,82 @@
+{
+  "repos": [
+    {
+      "name": "prompts.chat",
+      "full_name": "f/prompts.chat",
+      "description": "f.k.a. Awesome ChatGPT Prompts. Share, discover, and collect prompts from the community. Free and open source — self-host for your organization with complete privacy.",
+      "html_url": "https://github.com/f/prompts.chat",
+      "stars": 163038,
+      "forks": 21201,
+      "language": "HTML",
+      "topics": [
+        "ai",
+        "artificial-intelligence",
+        "awesome-list",
+        "chatgpt",
+        "chatgpt-prompts",
+        "claude",
+        "gemini",
+        "gpt",
+        "gpt-4",
+        "llm",
+        "machine-learning",
+        "nextjs",
+        "open-source",
+        "openai",
+        "prompt-engineering",
+        "prompts",
+        "prompts-chat",
+        "typescript"
+      ],
+      "created_at": "2022-12-05T13:54:13Z",
+      "updated_at": "2026-05-30T03:24:36Z",
+      "open_issues": 49,
+      "license": "NOASSERTION",
+      "homepage": "https://prompts.chat",
+      "owner": {
+        "login": "f",
+        "avatar_url": "https://avatars.githubusercontent.com/u/196477?v=4"
+      }
+    },
+    {
+      "name": "LLMs-from-scratch",
+      "full_name": "rasbt/LLMs-from-scratch",
+      "description": "Implement a ChatGPT-like LLM in PyTorch from scratch, step by step",
+      "html_url": "https://github.com/rasbt/LLMs-from-scratch",
+      "stars": 96285,
+      "forks": 14726,
+      "language": "Jupyter Notebook",
+      "topics": [
+        "ai",
+        "artificial-intelligence",
+        "attention-mechanism",
+        "deep-learning",
+        "finetuning",
+        "from-scratch",
+        "generative-ai",
+        "gpt",
+        "instruction-tuning",
+        "language-model",
+        "large-language-models",
+        "llm",
+        "machine-learning",
+        "natural-language-processing",
+        "pretraining",
+        "python",
+        "pytorch",
+        "tokenizer",
+        "transformers"
+      ],
+      "created_at": "2023-07-23T18:15:57Z",
+      "updated_at": "2026-05-30T03:11:00Z",
+      "open_issues": 2,
+      "license": "NOASSERTION",
+      "homepage": "https://amzn.to/4fqvn0D",
+      "owner": {
+        "login": "rasbt",
+        "avatar_url": "https://avatars.githubusercontent.com/u/5618407?v=4"
+      }
+    }
+  ],
+  "cached_at": "2026-05-30T11:29:35.145686"
+}
