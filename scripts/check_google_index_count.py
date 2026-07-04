@@ -1,158 +1,216 @@
 """
 Check Google indexed article count via site: search.
 Runs in GitHub Actions (can access Google).
+Improved version with diagnostics and multiple methods.
 """
 import urllib.request
 import urllib.parse
 import ssl
 import re
-import sys
 import json
 import os
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 BLOG_URL = "https://aitoolbits.blogspot.com"
-GTM_ID = "G-ZLSZKQ9RQD"  # Google Tag Manager ID on your blog
+
+
+def count_total_posts_via_atom_feed():
+    """Count total posts via Blogger Atom Feed (no auth needed)."""
+    feed_url = f"{BLOG_URL}/feeds/posts/default?max-results=1&alt=json"
+    req = urllib.request.Request(feed_url)
+    req.add_header("User-Agent", "Mozilla/5.0")
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            total = int(data.get("feed", {}).get("openSearch$totalResults", {}).get("$t", 0))
+            print(f"  Atom Feed 文章总数: {total} 篇")
+            return total
+    except Exception as e:
+        print(f"  Atom Feed 获取失败: {e}")
+        return None
+
+
+def check_blog_accessible():
+    """Check if the blog is accessible and returns proper HTML."""
+    print("\n[诊断] 检查博客可访问性...")
+    req = urllib.request.Request(BLOG_URL)
+    req.add_header("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+            status = resp.status
+            print(f"  HTTP Status: {status}")
+            print(f"  Page size: {len(html)} bytes")
+            
+            # Check for noindex
+            if "noindex" in html[:5000]:
+                print("  [WARN] Page contains 'noindex'!")
+            else:
+                print("  [OK] No 'noindex' detected")
+            
+            # Check title
+            title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+            if title_m:
+                print(f"  Title: {title_m.group(1)[:80]}")
+            
+            # Check canonical
+            canon_m = re.search(r'rel="canonical"[^>]*href="([^"]+)"', html, re.IGNORECASE)
+            if canon_m:
+                print(f"  Canonical: {canon_m.group(1)}")
+            
+            return True
+    except Exception as e:
+        print(f"  [FAIL] Cannot access blog: {e}")
+        return False
+
+
+def check_robots_txt():
+    """Check robots.txt for blocks."""
+    print("\n[诊断] 检查 robots.txt...")
+    ctx = ssl.create_default_context()
+    try:
+        req = urllib.request.Request(f"{BLOG_URL}/robots.txt")
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            content = resp.read().decode("utf-8", errors="ignore")
+            if "Disallow: /" in content:
+                print("  [WARN] robots.txt blocks everything!")
+                print(f"  Content: {content[:200]}")
+            else:
+                print(f"  [OK] robots.txt is fine")
+                for line in content.strip().split("\n"):
+                    if "Disallow" in line or "Sitemap" in line:
+                        print(f"  {line.strip()}")
+            return content
+    except Exception as e:
+        print(f"  [FAIL] Cannot fetch robots.txt: {e}")
+        return None
 
 
 def count_indexed_via_google_search():
     """Search Google for site:aitoolbits.blogspot.com and count results."""
     query = f"site:aitoolbits.blogspot.com"
-    url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=100&hl=en&filter=0"
+    url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num=100&hl=en&filter=0&safe=off"
     
-    req = urllib.request.Request(url)
-    req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-    req.add_header("Accept-Language", "en-US,en;q=0.9")
-    req.add_header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+    # Try multiple User-Agent strategies
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    ]
     
-    ctx = ssl.create_default_context()
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-    except Exception as e:
-        print(f"Google search failed: {e}")
-        return None
+    for ua in user_agents:
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", ua)
+        req.add_header("Accept-Language", "en-US,en;q=0.9")
+        req.add_header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+        req.add_header("Cache-Control", "no-cache")
+        
+        ctx = ssl.create_default_context()
+        try:
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+                print(f"  [UA: {ua[:30]}...] Response: {resp.status}, Size: {len(html)}")
+                
+                # Detect captcha/bot block
+                if "captcha" in html.lower() or "unusual traffic" in html.lower():
+                    print(f"  [BLOCKED] Google is showing captcha/bot detection page")
+                    continue
+                
+                if len(html) < 5000:
+                    print(f"  Response too small ({len(html)} bytes) - likely blocked")
+                    continue
+                
+                # Method 1: Result stats
+                m = re.search(r'id="result-stats"[^>]*>([^<]+)<', html, re.IGNORECASE)
+                if m:
+                    stats_text = m.group(1)
+                    print(f"  Result stats: {stats_text}")
+                    num_m = re.search(r'([\d,]+)', stats_text.replace(",", ""))
+                    if num_m:
+                        return int(num_m.group(1).replace(",", ""))
+                
+                # Method 2: Count article URLs
+                urls = re.findall(
+                    r'(https?://aitoolbits\.blogspot\.com/\d{4}/\d{2}/[^\"\'<>\s]+?\.html)',
+                    html
+                )
+                unique = len(set(urls))
+                print(f"  Unique article URLs on page: {unique}")
+                
+                # Method 3: Broader URL match
+                all_urls = re.findall(
+                    r'(https?://aitoolbits\.blogspot\.com/[^\"\'<>\s]+)',
+                    html
+                )
+                all_unique = len(set(all_urls))
+                print(f"  All aitoolbits URLs on page: {all_unique}")
+                
+                # Method 4: "About X results" 
+                m = re.search(r'About ([\d,]+) results', html, re.IGNORECASE)
+                if m:
+                    return int(m.group(1).replace(",", ""))
+                
+                if unique > 0:
+                    return f"> {unique} (first page only)"
+                
+                # Show a snippet of HTML for diagnosis
+                print(f"  HTML snippet: {html[500:800]}")
+                break  # Got a reasonable response, no need to try other UAs
+                
+        except Exception as e:
+            print(f"  Google search error: {e}")
+            continue
     
-    # Method 1: Look for result-stats
-    m = re.search(r'id="result-stats"[^>]*>([^<]+)<', html, re.IGNORECASE)
-    if m:
-        stats_text = m.group(1)
-        print(f"Google result stats: {stats_text}")
-        # Extract number
-        num_m = re.search(r'([\d,]+)', stats_text.replace(",", ""))
-        if num_m:
-            return int(num_m.group(1).replace(",", ""))
-    
-    # Method 2: Count actual result links
-    urls = re.findall(r'(https?://aitoolbits\.blogspot\.com/\d{4}/\d{2}/[^\"\'<>\s]+?\.html)', html)
-    unique = len(set(urls))
-    print(f"Unique article URLs on first page: {unique}")
-    
-    # Method 3: Look for "About X results" text
-    m = re.search(r'About ([\d,]+) results', html, re.IGNORECASE)
-    if m:
-        count = int(m.group(1).replace(",", ""))
-        print(f"About {count} results")
-        return count
-    
-    # If we got some results but couldn't extract count
-    if unique > 0:
-        return f"> {unique} (first page only)"
-    
-    return 0
+    return None
 
 
 def count_indexed_via_bing():
-    """Check Bing for indexed pages as alternate data point."""
+    """Check Bing for indexed pages."""
     query = f"site:aitoolbits.blogspot.com"
     url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}&count=50"
     
     req = urllib.request.Request(url)
-    req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+    req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+    req.add_header("Accept-Language", "en-US,en;q=0.9")
     
     ctx = ssl.create_default_context()
     try:
         with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
             html = resp.read().decode("utf-8", errors="ignore")
+            print(f"  Bing response: Status={resp.status}, Size={len(html)}")
     except Exception as e:
-        print(f"Bing search failed: {e}")
+        print(f"  Bing search failed: {e}")
         return None
     
-    # Look for result count
+    # Method 1: Result count
     m = re.search(r'About ([\d,]+) results', html, re.IGNORECASE)
     if m:
-        count = int(m.group(1).replace(",", ""))
-        print(f"Bing: About {count} results")
-        return count
+        return int(m.group(1).replace(",", ""))
     
-    # Count article URLs
-    urls = re.findall(r'(https?://aitoolbits\.blogspot\.com/\d{4}/\d{2}/[^\"\'<>\s]+?\.html)', html)
+    m = re.search(r'([\d,]+) results', html, re.IGNORECASE)
+    if m:
+        return int(m.group(1).replace(",", ""))
+    
+    # Method 2: Count article URLs
+    urls = re.findall(
+        r'(https?://aitoolbits\.blogspot\.com/\d{4}/\d{2}/[^\"\'<>\s]+?\.html)',
+        html
+    )
     unique = len(set(urls))
+    print(f"  Bing article URLs on page: {unique}")
+    
     if unique > 0:
-        print(f"Bing: {unique} unique article URLs on first page")
         return f"> {unique} (first page only)"
     
-    return 0
-
-
-def count_total_posts_via_blogger_api():
-    """Get total post count from Blogger API."""
-    # Read tokens from environment (set in GitHub Actions secrets)
-    client_id = os.environ.get("BLOGGER_CLIENT_ID", "")
-    client_secret = os.environ.get("BLOGGER_CLIENT_SECRET", "")
-    refresh_token = os.environ.get("BLOGGER_REFRESH_TOKEN", "")
-    blog_id = os.environ.get("BLOGGER_BLOG_ID", "")
-    
-    if not all([client_id, client_secret, refresh_token, blog_id]):
-        # Try file fallback
-        tokens_path = os.path.join(os.path.dirname(__file__), "..", "blogger_tokens.json")
-        if os.path.exists(tokens_path):
-            with open(tokens_path) as f:
-                tokens = json.load(f)
-            client_id = client_id or tokens.get("BLOGGER_CLIENT_ID", tokens.get("client_id", ""))
-            client_secret = client_secret or tokens.get("BLOGGER_CLIENT_SECRET", tokens.get("client_secret", ""))
-            refresh_token = refresh_token or tokens.get("BLOGGER_REFRESH_TOKEN", tokens.get("refresh_token", ""))
-            blog_id = blog_id or tokens.get("BLOGGER_BLOG_ID", "")
-        else:
-            print("No Blogger tokens available")
-            return None
-    
-    # Get access token
-    data = urllib.parse.urlencode({
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token",
-    }).encode("utf-8")
-    
-    req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data, method="POST")
-    req.add_header("Content-Type", "application/x-www-form-urlencoded")
-    
-    ctx = ssl.create_default_context()
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            access_token = result.get("access_token", "")
-    except Exception as e:
-        print(f"Failed to get access token: {e}")
+    # Try to detect if we got blocked
+    if len(html) < 1000:
+        print(f"  Bing response too small - likely blocked")
         return None
     
-    if not access_token:
-        print("No access token")
-        return None
-    
-    # Count posts
-    url = f"https://www.googleapis.com/blogger/v3/blogs/{blog_id}/posts?maxResults=1&fields=totalItems"
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", f"Bearer {access_token}")
-    
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            return result.get("totalItems", 0)
-    except Exception as e:
-        print(f"Blogger API failed: {e}")
-        return None
+    return None
 
 
 def send_wechat_notification(google_count, bing_count, total_posts):
@@ -164,33 +222,29 @@ def send_wechat_notification(google_count, bing_count, total_posts):
     
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     
-    # Build report
-    g_str = str(google_count) if google_count is not None else "检测失败"
-    b_str = str(bing_count) if bing_count is not None else "检测失败"
+    g_str = str(google_count) if google_count is not None else "检测失败（被屏蔽）"
+    b_str = str(bing_count) if bing_count is not None else "检测失败（被屏蔽）"
     t_str = str(total_posts) if total_posts is not None else "未知"
     
     if isinstance(google_count, int) and isinstance(total_posts, int) and total_posts > 0:
         ratio = f"{google_count / total_posts * 100:.1f}%"
     else:
-        ratio = "未知"
+        ratio = "待确认"
     
-    title = f"Google 收录检测: {g_str}/{t_str} ({ratio})"
+    title = f"收录检测: G={g_str} B={b_str} / 共{t_str}篇"
     
     content = f"""## aitoolbits 收录情况报告
 > 检测时间: {now}
 
-| 搜索引擎 | 收录篇数 |
-| -------- | -------- |
-| Google   | {g_str} |
-| Bing     | {b_str} |
+| 项目 | 数值 |
+|------|------|
+| Google 收录 | {g_str} |
+| Bing 收录 | {b_str} |
+| 文章总数 | {t_str} 篇 |
+| 收录率 | {ratio} |
 
-**总文章数**: {t_str} 篇
-**Google 收录率**: {ratio}
-
-**说明**: 如果 Google 收录数偏低，可能需要：
-1. 等待 3-7 天（Google 爬虫持续抓取中）
-2. 在 GSC 后台手动请求索引重点文章
-3. 检查是否有被标记为低质量的页面
+⚠️ 注意: 搜索引擎常会拦截自动请求，结果可能不准确。
+最准确的方式: 登录 GSC → 效果 → 搜索结果 → 查看已编入索引的页面数。
 """
     
     data = urllib.parse.urlencode({
@@ -212,45 +266,44 @@ def send_wechat_notification(google_count, bing_count, total_posts):
 
 def main():
     print("=" * 60)
-    print("aitoolbits.blogspot.com 索引收录检测")
+    print("aitoolbits.blogspot.com 索引收录检测 v2")
     print("=" * 60)
-    print()
     
-    # 1. Total posts count
-    print("[1/3] 获取文章总数...")
-    total_posts = count_total_posts_via_blogger_api()
-    if total_posts:
-        print(f"  文章总数: {total_posts} 篇")
-    else:
-        print("  无法获取文章总数")
+    # 0. Diagnostics
+    check_blog_accessible()
+    check_robots_txt()
     
-    print()
+    # 1. Total posts count from Atom Feed
+    print("\n[1/4] 获取文章总数...")
+    total_posts = count_total_posts_via_atom_feed()
     
     # 2. Google indexed count
-    print("[2/3] 检测 Google 收录...")
+    print("\n[2/4] 检测 Google 收录...")
     google_count = count_indexed_via_google_search()
     if google_count is not None:
-        print(f"  Google 收录: {google_count} 篇")
+        print(f"  => Google 收录: {google_count} 篇")
     else:
-        print("  Google 收录检测失败")
-    
-    print()
+        print("  => Google 收录检测失败（被反爬拦截）")
     
     # 3. Bing indexed count
-    print("[3/3] 检测 Bing 收录...")
+    print("\n[3/4] 检测 Bing 收录...")
     bing_count = count_indexed_via_bing()
     if bing_count is not None:
-        print(f"  Bing 收录: {bing_count} 篇")
+        print(f"  => Bing 收录: {bing_count} 篇")
     else:
-        print("  Bing 收录检测失败")
+        print("  => Bing 收录检测失败（被反爬拦截）")
     
-    print()
+    # 4. Summary
+    print("\n[4/4] 汇总")
     print("=" * 60)
+    print(f"  文章总数: {total_posts or '未知'} 篇")
+    print(f"  Google: {google_count or '无法检测'}")
+    print(f"  Bing: {bing_count or '无法检测'}")
     
-    # Summary
-    if total_posts and isinstance(google_count, int):
-        pct = google_count / total_posts * 100 if total_posts > 0 else 0
-        print(f"收录率: {google_count}/{total_posts} = {pct:.1f}%")
+    # Google index check note
+    if google_count is None:
+        print("\n  ⚠️ Google 搜索被反爬拦截，无法自动检测收录量")
+        print("  📋 建议: 登录 GSC 手动查看 '效果' → '搜索结果' → 已编入索引的页面")
     
     # Send notification
     send_wechat_notification(google_count, bing_count, total_posts)
