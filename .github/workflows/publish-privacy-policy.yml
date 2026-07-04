@@ -1,0 +1,29 @@
+name: Publish Privacy Policy Page
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-privacy-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Publish Privacy Policy to Blogger
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: python scripts/publish_privacy_policy.py
