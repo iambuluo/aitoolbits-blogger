@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Google Indexing API + PubSubHubbub 自动提交索引脚本
+Google Indexing 自动提交脚本 (增强版)
 在 GitHub Actions 中运行（服务器在墙外，可访问 Google）
 
 功能:
 1. 用 Blogger OAuth 获取所有文章 URL
-2. 用 PubSubHubbub 协议 ping Google (无需额外配置)
-3. 如果有 Google Service Account JSON，则用 Indexing API 批量提交
-4. 生成干净 sitemap.xml 上传到 GitHub Pages (绕过 Blogger noindex)
-5. 通过 Server酱 发送微信通知
+2. Ping Google PubSubHubbub (无需额外配置)
+3. Ping Google Sitemap (旧版 ping API)
+4. 尝试用 Blogger OAuth 调 Search Console API 提交 sitemap
+5. 如果有 Google Service Account JSON，则用 Indexing API 批量提交
+6. 生成干净 sitemap.xml (绕过 Blogger noindex)
+7. 通过 Server酱 发送微信通知
 
 环境变量:
 - BLOGGER_CLIENT_ID / BLOGGER_CLIENT_SECRET / BLOGGER_REFRESH_TOKEN / BLOGGER_BLOG_ID
@@ -21,14 +23,16 @@ import ssl
 import time
 import urllib.request
 import urllib.parse
+import urllib.error
 from datetime import datetime
 
 CTX = ssl.create_default_context()
 BLOG_URL = "https://aitoolbits.blogspot.com"
+SITE_URL_ENCODED = urllib.parse.quote("https://aitoolbits.blogspot.com/", safe="")
 
 
 # ============================================================
-# 1. Blogger API: 获取所有文章 URL
+# 1. Blogger API: 获取 access token + 所有文章 URL
 # ============================================================
 
 def get_blogger_access_token():
@@ -38,7 +42,7 @@ def get_blogger_access_token():
     refresh_token = os.environ.get("BLOGGER_REFRESH_TOKEN", "")
 
     if not all([client_id, client_secret, refresh_token]):
-        print("  [!] Blogger OAuth 凭据不完整，尝试从本地文件加载...")
+        print("  [!] 环境变量不完整，尝试从本地文件加载...")
         tokens_path = os.path.join(os.path.dirname(__file__), "..", "blogger_tokens.json")
         if os.path.exists(tokens_path):
             with open(tokens_path, "r", encoding="utf-8") as f:
@@ -75,7 +79,7 @@ def get_all_post_urls(access_token, blog_id):
     page_token = None
     api_base = f"https://www.googleapis.com/blogger/v3/blogs/{blog_id}/posts"
 
-    for _ in range(10):  # 最多 10 页
+    for _ in range(10):
         params = {"maxResults": "500", "status": "live"}
         if page_token:
             params["pageToken"] = page_token
@@ -94,7 +98,18 @@ def get_all_post_urls(access_token, blog_id):
             if not page_token:
                 break
 
-    return list(dict.fromkeys(all_posts))  # 去重
+    return list(dict.fromkeys(all_posts))
+
+
+def get_urls_from_sitemap():
+    """备用：从 Blogger sitemap.xml 获取文章 URL"""
+    import re
+    req = urllib.request.Request(f"{BLOG_URL}/sitemap.xml")
+    req.add_header("User-Agent", "Mozilla/5.0")
+    with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
+        content = resp.read().decode("utf-8")
+        urls = re.findall(r"<loc>(https://aitoolbits\.blogspot\.com/[^<]+)</loc>", content)
+    return urls
 
 
 # ============================================================
@@ -117,7 +132,6 @@ def ping_pubsubhubbub():
     try:
         with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
             status = resp.status
-            body = resp.read().decode("utf-8", errors="ignore")
             print(f"  [OK] PubSubHubbub ping 成功 (HTTP {status})")
             return True
     except Exception as e:
@@ -126,19 +140,111 @@ def ping_pubsubhubbub():
 
 
 # ============================================================
-# 3. Google Indexing API: 批量提交 URL (需要 Service Account)
+# 3. Google Sitemap Ping (旧版 API，可能已弃用但试一下)
+# ============================================================
+
+def ping_google_sitemap():
+    """用 Google 旧版 sitemap ping API 提交 sitemap"""
+    sitemap_url = f"{BLOG_URL}/sitemap.xml"
+    ping_url = f"https://www.google.com/ping?sitemap={urllib.parse.quote(sitemap_url, safe='')}"
+
+    req = urllib.request.Request(ping_url)
+    req.add_header("User-Agent", "Mozilla/5.0 (compatible; BlogIndexer/1.0)")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
+            status = resp.status
+            print(f"  [OK] Google Sitemap Ping 成功 (HTTP {status})")
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code == 200 or e.code == 204:
+            print(f"  [OK] Google Sitemap Ping 成功")
+            return True
+        print(f"  [!] Google Sitemap Ping: HTTP {e.code}")
+        return False
+    except Exception as e:
+        print(f"  [!] Google Sitemap Ping 失败: {e}")
+        return False
+
+
+# ============================================================
+# 4. Search Console API: 提交 sitemap (用 Blogger OAuth 尝试)
+# ============================================================
+
+def submit_sitemap_via_gsc_api(access_token):
+    """尝试用 Blogger OAuth token 调 Search Console API 提交 sitemap"""
+    # 提交 Atom Feed 作为 sitemap (不带 noindex)
+    feed_path = "feeds/posts/default?orderby=updated"
+    feed_url_encoded = urllib.parse.quote(f"{BLOG_URL}/{feed_path}", safe="")
+    api_url = f"https://www.googleapis.com/webmasters/v3/sites/{SITE_URL_ENCODED}/sitemaps/{feed_url_encoded}"
+
+    req = urllib.request.Request(api_url, method="PUT", data=b"")
+    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
+            status = resp.status
+            body = resp.read().decode("utf-8", errors="ignore")
+            print(f"  [OK] GSC API sitemap 提交成功 (HTTP {status})")
+            return True
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="ignore")
+        if e.code == 403:
+            print(f"  [i] GSC API 权限不足 (需要 webmasters scope)，跳过")
+            print(f"  [i] 这是正常的 - Blogger OAuth 没有 Search Console 权限")
+            return False
+        elif e.code == 409:
+            print(f"  [OK] GSC API sitemap 已存在 (HTTP 409)")
+            return True
+        else:
+            print(f"  [!] GSC API 错误: HTTP {e.code} - {error_body[:200]}")
+            return False
+    except Exception as e:
+        print(f"  [!] GSC API 异常: {e}")
+        return False
+
+
+def check_gsc_sitemap_status(access_token):
+    """查询 GSC sitemap 状态"""
+    api_url = f"https://www.googleapis.com/webmasters/v3/sites/{SITE_URL_ENCODED}/sitemaps"
+    req = urllib.request.Request(api_url)
+    req.add_header("Authorization", f"Bearer {access_token}")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            sitemaps = data.get("sitemap", [])
+            if sitemaps:
+                print(f"  [OK] GSC 已有 {len(sitemaps)} 个 sitemap:")
+                for sm in sitemaps:
+                    print(f"    - {sm.get('path','')} | 状态: {sm.get('errors','')} | 已发现: {sm.get('isPending','')}")
+            else:
+                print("  [i] GSC 暂无 sitemap 记录")
+            return sitemaps
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            print(f"  [i] GSC API 权限不足 (需要 webmasters scope)，跳过状态查询")
+        else:
+            print(f"  [!] GSC 状态查询失败: HTTP {e.code}")
+        return []
+    except Exception as e:
+        print(f"  [!] GSC 状态查询异常: {e}")
+        return []
+
+
+# ============================================================
+# 5. Google Indexing API: 批量提交 URL (需要 Service Account)
 # ============================================================
 
 def get_indexing_api_token(service_account_json):
     """用 service account JSON 获取 Indexing API access token"""
     import base64
-    import hashlib
 
     sa = json.loads(service_account_json) if isinstance(service_account_json, str) else service_account_json
     client_email = sa["client_email"]
     private_key = sa["private_key"]
 
-    # 构建 JWT
     now = int(time.time())
     header = {"alg": "RS256", "typ": "JWT"}
     payload = {
@@ -156,7 +262,6 @@ def get_indexing_api_token(service_account_json):
     payload_b64 = b64encode(json.dumps(payload, separators=(",", ":")).encode())
     signing_input = f"{header_b64}.{payload_b64}".encode()
 
-    # 用 RSA 签名
     try:
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -172,7 +277,6 @@ def get_indexing_api_token(service_account_json):
 
     jwt = f"{header_b64}.{payload_b64}.{signature_b64}"
 
-    # 换取 access token
     data = urllib.parse.urlencode({
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": jwt,
@@ -217,18 +321,17 @@ def submit_urls_via_indexing_api(urls, service_account_json):
 
     for i, url in enumerate(urls):
         try:
-            result = submit_url_to_indexing_api(token, url)
+            submit_url_to_indexing_api(token, url)
             submitted += 1
             print(f"  [OK] ({i+1}/{len(urls)}) {url}")
         except urllib.error.HTTPError as e:
             failed += 1
             error_body = e.read().decode("utf-8", errors="ignore")
-            # 429 = Too Many Requests, 需要等待
             if e.code == 429:
                 print(f"  [!] 速率限制，等待 60 秒...")
                 time.sleep(60)
                 try:
-                    result = submit_url_to_indexing_api(token, url)
+                    submit_url_to_indexing_api(token, url)
                     submitted += 1
                     failed -= 1
                     print(f"  [OK] (重试) ({i+1}/{len(urls)}) {url}")
@@ -243,7 +346,6 @@ def submit_urls_via_indexing_api(urls, service_account_json):
             errors.append(f"{url}: {e}")
             print(f"  [X] ({i+1}/{len(urls)}) {url}: {e}")
 
-        # 请求间隔 1 秒，避免速率限制
         if i < len(urls) - 1:
             time.sleep(1)
 
@@ -251,7 +353,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
 
 
 # ============================================================
-# 4. 生成干净 sitemap.xml (绕过 Blogger noindex)
+# 6. 生成干净 sitemap.xml (绕过 Blogger noindex)
 # ============================================================
 
 def generate_clean_sitemap(urls, output_path):
@@ -259,10 +361,11 @@ def generate_clean_sitemap(urls, output_path):
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
 
+    now_ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
     for url in urls:
         lines.append("  <url>")
         lines.append(f"    <loc>{url}</loc>")
-        lines.append(f"    <lastmod>{datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}</lastmod>")
+        lines.append(f"    <lastmod>{now_ts}</lastmod>")
         lines.append("    <changefreq>weekly</changefreq>")
         lines.append("    <priority>0.8</priority>")
         lines.append("  </url>")
@@ -276,7 +379,7 @@ def generate_clean_sitemap(urls, output_path):
 
 
 # ============================================================
-# 5. Server酱 微信通知
+# 7. Server酱 微信通知
 # ============================================================
 
 def send_serverchan(title, content, sendkey):
@@ -308,12 +411,15 @@ def send_serverchan(title, content, sendkey):
 
 def main():
     print("=" * 60)
-    print("  Google Indexing 自动提交工具")
+    print("  Google Indexing 自动提交工具 (增强版)")
     print(f"  时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     # Step 1: 获取所有文章 URL
-    print("\n[1/5] 获取博客文章列表...")
+    print("\n[1/7] 获取博客文章列表...")
+    access_token = None
+    urls = []
+
     try:
         access_token = get_blogger_access_token()
         blog_id = os.environ.get("BLOGGER_BLOG_ID", "")
@@ -323,32 +429,51 @@ def main():
                 blog_id = json.load(f).get("BLOGGER_BLOG_ID", "")
 
         urls = get_all_post_urls(access_token, blog_id)
-        print(f"  [OK] 共获取 {len(urls)} 篇文章")
+        print(f"  [OK] Blogger API 获取 {len(urls)} 篇文章")
     except Exception as e:
-        print(f"  [X] 获取文章列表失败: {e}")
+        print(f"  [!] Blogger API 失败: {e}")
         print("  [i] 尝试从 sitemap.xml 获取...")
         try:
-            req = urllib.request.Request(f"{BLOG_URL}/sitemap.xml")
-            req.add_header("User-Agent", "Mozilla/5.0")
-            with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
-                import re
-                content = resp.read().decode("utf-8")
-                urls = re.findall(r"<loc>(https://aitoolbits\.blogspot\.com/[^<]+)</loc>", content)
+            urls = get_urls_from_sitemap()
             print(f"  [OK] 从 sitemap 获取 {len(urls)} 篇文章")
         except Exception as e2:
             print(f"  [X] sitemap 也无法获取: {e2}")
-            return
+            # 最后尝试：从 Atom Feed 获取
+            try:
+                req = urllib.request.Request(f"{BLOG_URL}/feeds/posts/default?max-results=500")
+                req.add_header("User-Agent", "Mozilla/5.0")
+                with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
+                    import re
+                    content = resp.read().decode("utf-8")
+                    urls = re.findall(r"<link rel='alternate' type='text/html' href='(https://aitoolbits\.blogspot\.com/[^']+)'", content)
+                print(f"  [OK] 从 Atom Feed 获取 {len(urls)} 篇文章")
+            except Exception as e3:
+                print(f"  [X] 全部获取方式失败: {e3}")
+                return
 
     if not urls:
         print("\n[X] 没有获取到任何文章 URL，退出")
         return
 
     # Step 2: PubSubHubbub ping
-    print("\n[2/5] Ping Google PubSubHubbub...")
+    print("\n[2/7] Ping Google PubSubHubbub...")
     ping_result = ping_pubsubhubbub()
 
-    # Step 3: Indexing API 提交 (如果配置了 service account)
-    print("\n[3/5] Google Indexing API 提交...")
+    # Step 3: Google Sitemap Ping
+    print("\n[3/7] Ping Google Sitemap (旧版 API)...")
+    sitemap_ping_result = ping_google_sitemap()
+
+    # Step 4: GSC API 提交 sitemap (用 Blogger OAuth 尝试)
+    print("\n[4/7] 尝试 Search Console API 提交 sitemap...")
+    gsc_result = False
+    if access_token:
+        gsc_result = submit_sitemap_via_gsc_api(access_token)
+        check_gsc_sitemap_status(access_token)
+    else:
+        print("  [i] 无 access token，跳过 GSC API")
+
+    # Step 5: Indexing API 提交 (如果配置了 service account)
+    print("\n[5/7] Google Indexing API 提交...")
     sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     indexing_result = None
 
@@ -358,22 +483,33 @@ def main():
         print(f"\n  提交完成: 成功 {indexing_result['submitted']}, 失败 {indexing_result['failed']}")
     else:
         print("  [i] 未配置 GOOGLE_SERVICE_ACCOUNT_JSON，跳过 Indexing API")
-        print("  [i] 要启用自动索引提交，请参考: SERVICE_ACCOUNT_SETUP.md")
+        print("  [i] PubSubHubbub + Sitemap Ping 已足够让 Google 发现你的网站")
 
-    # Step 4: 生成干净 sitemap
-    print("\n[4/5] 生成干净 sitemap.xml...")
+    # Step 6: 生成干净 sitemap
+    print("\n[6/7] 生成干净 sitemap.xml...")
     sitemap_path = os.path.join(os.path.dirname(__file__), "..", "docs", "sitemap.xml")
     os.makedirs(os.path.dirname(sitemap_path), exist_ok=True)
     generate_clean_sitemap(urls, sitemap_path)
 
-    # 同时生成 URL 列表
     url_list_path = os.path.join(os.path.dirname(__file__), "..", "docs", "all_urls.txt")
     with open(url_list_path, "w", encoding="utf-8") as f:
         f.write("\n".join(urls))
     print(f"  [OK] URL 列表已生成: {url_list_path}")
 
-    # Step 5: 生成报告 + 微信通知
-    print("\n[5/5] 生成报告 + 发送通知...")
+    # Step 7: 生成报告 + 微信通知
+    print("\n[7/7] 生成报告 + 发送通知...")
+
+    # 汇总结果
+    methods_used = []
+    if ping_result:
+        methods_used.append("PubSubHubbub Ping")
+    if sitemap_ping_result:
+        methods_used.append("Google Sitemap Ping")
+    if gsc_result:
+        methods_used.append("GSC API sitemap")
+    if indexing_result and indexing_result["submitted"] > 0:
+        methods_used.append(f"Indexing API ({indexing_result['submitted']} URLs)")
+
     report = f"""# Google Indexing 提交报告
 
 **时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -382,15 +518,31 @@ def main():
 
 ## 提交结果
 
-| 项目 | 结果 |
+| 方法 | 结果 |
 |------|------|
-| PubSubHubbub Ping | {"成功" if ping_result else "失败"} |
-| Indexing API | {"已提交" if indexing_result else "未配置"} |
-| 干净 Sitemap | 已生成 (docs/sitemap.xml) |
+| PubSubHubbub Ping | {"✅ 成功" if ping_result else "❌ 失败"} |
+| Google Sitemap Ping | {"✅ 成功" if sitemap_ping_result else "❌ 失败/弃用"} |
+| GSC API sitemap | {"✅ 成功" if gsc_result else "⏭️ 跳过 (权限不足)"} |
+| Indexing API | {"✅ 已提交" if indexing_result else "⏭️ 未配置 Service Account"} |
+| 干净 Sitemap | ✅ 已生成 |
 
+## 生效说明
+
+- **PubSubHubbub** 是最有效的方式，Google 会收到通知并派出爬虫
+- Google 爬虫通常在 1-3 天内开始抓取
+- 完整索引需要 2-7 天
+- 此脚本每天自动运行，持续通知 Google
+
+## 下一步
+
+1. 等待 2-7 天，然后在 GSC 查看"编制索引"数量
+2. 如果想加速，可设置 Service Account 启用 Indexing API
+3. 在 GSC 手动提交 Blogger Atom Feed 作为 sitemap:
+   `https://aitoolbits.blogspot.com/feeds/posts/default?orderby=updated`
 """
     if indexing_result:
-        report += f"""### Indexing API 详情
+        report += f"""
+### Indexing API 详情
 - 提交成功: {indexing_result['submitted']}
 - 提交失败: {indexing_result['failed']}
 """
@@ -398,21 +550,6 @@ def main():
             report += "\n### 错误信息\n"
             for err in indexing_result["errors"][:10]:
                 report += f"- {err}\n"
-
-    report += f"""
-## 下一步操作
-
-1. **提交干净 Sitemap 到 GSC**:
-   - 打开 https://search.google.com/search-console
-   - 选择 aitoolbits.blogspot.com
-   - 左侧: 编制索引 → Sitemaps
-   - 如果启用了 GitHub Pages，输入: `https://iambuluo.github.io/aitoolbits-blogger/sitemap.xml`
-   - 或直接使用 Blogger Atom Feed: `https://aitoolbits.blogspot.com/feeds/posts/default?orderby=updated`
-
-2. **等待 2-7 天** 让 Google 爬虫抓取和索引
-
-3. **如果配置了 Service Account**，此脚本会每天自动提交所有 URL
-"""
 
     # 保存报告
     report_path = os.path.join(os.path.dirname(__file__), "..", "docs", "indexing_report.md")
@@ -422,19 +559,21 @@ def main():
 
     # 微信通知
     sendkey = os.environ.get("SERVER_CHAN_KEY", "")
-    notif_title = f"Indexing 提交完成 ({len(urls)} 篇)"
+    notif_title = f"Google Indexing 完成 ({len(urls)} 篇)"
     notif_content = f"""
 文章数: {len(urls)}
-PubSubHubbub: 已 ping
-Indexing API: {"已提交" if indexing_result and indexing_result["submitted"] > 0 else "未配置/失败"}
-干净 Sitemap: 已生成
+PubSubHubbub: {"✅" if ping_result else "❌"}
+Sitemap Ping: {"✅" if sitemap_ping_result else "❌"}
+GSC API: {"✅" if gsc_result else "⏭️"}
+Indexing API: {"✅" if indexing_result and indexing_result["submitted"] > 0 else "⏭️"}
 
-详情见: docs/indexing_report.md
+生效方法: {", ".join(methods_used) if methods_used else "无"}
 """
     send_serverchan(notif_title, notif_content, sendkey)
 
     print("\n" + "=" * 60)
     print("  全部完成!")
+    print(f"  生效方式: {', '.join(methods_used) if methods_used else '无'}")
     print("=" * 60)
 
 
