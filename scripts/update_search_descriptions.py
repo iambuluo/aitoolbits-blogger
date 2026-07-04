@@ -79,7 +79,7 @@ def get_all_posts(access_token, blog_id):
     api_base = f"{BLOGGER_API}/{blog_id}/posts"
 
     for _ in range(10):
-        params = {"maxResults": "500", "status": "live", "fields": "items(id,title,url,searchDescription,content,labels),nextPageToken"}
+        params = {"maxResults": "500", "status": "live"}
         if page_token:
             params["pageToken"] = page_token
 
