@@ -20,7 +20,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: echo "No additional dependencies needed"
+        run: |
+          pip install --quiet urllib3
+          pip install --quiet cryptography
 
       - name: Verify secrets
         run: |

@@ -1,0 +1,103 @@
+name: Google Indexing Auto-Submit (Daily)
+
+on:
+  schedule:
+    # Every day at UTC 01:00 = Beijing 09:00
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  submit-indexing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet urllib3
+          pip install --quiet cryptography
+
+      - name: Verify secrets
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: |
+          echo "=== Secrets Status ==="
+          MISSING=""
+          for SECRET in BLOGGER_CLIENT_ID BLOGGER_CLIENT_SECRET BLOGGER_REFRESH_TOKEN BLOGGER_BLOG_ID; do
+            if [ -n "${!SECRET}" ]; then
+              echo "  $SECRET: OK"
+            else
+              echo "  $SECRET: MISSING"
+              MISSING="$MISSING $SECRET"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo ""
+            echo "ERROR: Required secrets not configured:$MISSING"
+            echo "Run locally: python scripts/setup_github_secrets.py"
+            exit 1
+          fi
+
+          # Check optional secrets
+          if [ -n "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "  GOOGLE_SERVICE_ACCOUNT_JSON: OK"
+          else
+            echo "  GOOGLE_SERVICE_ACCOUNT_JSON: NOT SET (Indexing API will be skipped)"
+          fi
+
+          if [ -n "${{ secrets.SERVER_CHAN_KEY }}" ]; then
+            echo "  SERVER_CHAN_KEY: OK"
+          else
+            echo "  SERVER_CHAN_KEY: NOT SET"
+          fi
+
+      - name: Run indexing submission script
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SERVER_CHAN_KEY: ${{ secrets.SERVER_CHAN_KEY }}
+        run: |
+          echo "=== Google Indexing Auto-Submit ==="
+          echo "Running at $(date -u)"
+          echo ""
+          python scripts/google_indexing_submit.py
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: indexing-report
+          path: |
+            docs/indexing_report.md
+            docs/sitemap.xml
+            docs/all_urls.txt
+          retention-days: 30
+
+      - name: Commit clean sitemap to repo
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/sitemap.xml docs/all_urls.txt 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: update clean sitemap.xml [skip ci]"
+          git push || echo "No changes to push or push failed (non-critical)"
+
+      - name: Log result
+        if: always()
+        run: |
+          echo "Workflow completed at $(date -u)"
+          echo "Trigger: ${{ github.event_name }}"
