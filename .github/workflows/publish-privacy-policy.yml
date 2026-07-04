@@ -2,6 +2,9 @@ name: Publish Privacy Policy Page
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.trigger-privacy-policy'
 
 jobs:
   publish-privacy-policy:
