@@ -95,13 +95,23 @@ jobs:
             docs/all_urls.txt
           retention-days: 30
 
+      - name: Sync published URLs database
+        if: success()
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: |
+          python scripts/sync_published_urls.py
+
       - name: Commit clean sitemap to repo
         if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/sitemap.xml docs/all_urls.txt 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "chore: update clean sitemap.xml [skip ci]"
+          git add docs/sitemap.xml docs/all_urls.txt data/published_urls.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: update clean sitemap + published_urls db [skip ci]"
           git push || echo "No changes to push or push failed (non-critical)"
 
       - name: Log result

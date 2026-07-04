@@ -587,11 +587,12 @@ def get_random_topic():
     """Get a random topic with parameters filled in."""
     topic = random.choice(TOPICS)
     year = datetime.now().year
-    title = topic["title"].format(year=year, version=f"{random.randint(6,8)}.{random.randint(0,2)}")
+    version_str = f"{random.randint(6,8)}.{random.randint(0,2)}"
+    title = topic["title"].format(year=year, version=version_str)
     return {
         "title": title,
         "category": topic["category"],
-        "keywords": [kw.format(year=year) for kw in topic["keywords"]],
+        "keywords": [kw.format(year=year, version=version_str) for kw in topic["keywords"]],
         "type": topic["type"],
     }
 

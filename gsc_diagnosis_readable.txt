@@ -1,0 +1,47 @@
+GSC 重定向诊断报告
+生成时间: 2026-06-16 22:07
+============================================================
+
+总文章数: 10
+抽样数: 5
+发现重定向问题: 0
+Canonical 不匹配: 0
+
+文章: AI Legal Tools: How AI Is Changing the Legal Industry
+原始 URL: https://aitoolbits.blogspot.com/2026/06/ai-legal-tools-how-ai-is-changing-legal.html
+最终 URL: None
+Canonical: https://aitoolbits.blogspot.com/2026/06/ai-legal-tools-how-ai-is-changing-legal.html
+错误: 'CustomHandler' object has no attribute 'version'
+
+------------------------------------------------------------
+文章: ECC: The AI Repo Gaining 216,348+ Stars This Week
+原始 URL: https://aitoolbits.blogspot.com/2026/06/ecc-ai-repo-gaining-216348-stars-this.html
+最终 URL: None
+Canonical: https://aitoolbits.blogspot.com/2026/06/ecc-ai-repo-gaining-216348-stars-this.html
+错误: 'CustomHandler' object has no attribute 'version'
+
+------------------------------------------------------------
+文章: Best AI Coding Assistants in 2026: Cursor, Copilot, and More
+原始 URL: https://aitoolbits.blogspot.com/2026/06/best-ai-coding-assistants-in-2026.html
+最终 URL: None
+Canonical: https://aitoolbits.blogspot.com/2026/06/best-ai-coding-assistants-in-2026.html
+错误: 'CustomHandler' object has no attribute 'version'
+
+------------------------------------------------------------
+文章: Best AI Video Translators: Dub Videos into Any Language
+原始 URL: https://aitoolbits.blogspot.com/2026/06/best-ai-video-translators-dub-videos.html
+最终 URL: None
+Canonical: https://aitoolbits.blogspot.com/2026/06/best-ai-video-translators-dub-videos.html
+错误: 'CustomHandler' object has no attribute 'version'
+
+------------------------------------------------------------
+文章: AI Data Visualization Tools: Turn Data into Beautiful Charts
+原始 URL: https://aitoolbits.blogspot.com/2026/06/ai-data-visualization-tools-turn-data.html
+最终 URL: None
+Canonical: https://aitoolbits.blogspot.com/2026/06/ai-data-visualization-tools-turn-data.html
+错误: 'CustomHandler' object has no attribute 'version'
+
+------------------------------------------------------------
+
+
+修复建议:
