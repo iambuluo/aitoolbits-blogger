@@ -1,0 +1,39 @@
+name: Delete Duplicate Articles
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.trigger-delete-duplicates'
+
+permissions:
+  contents: write
+
+jobs:
+  delete-duplicates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Delete duplicate articles
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: python scripts/delete_duplicate_articles.py
+
+      - name: Commit updated published_urls.json
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/published_urls.json || true
+          git commit -m "Remove deleted duplicate URLs from published_urls.json" || echo "No changes to commit"
+          git push || echo "No changes to push"
