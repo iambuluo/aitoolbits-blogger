@@ -72,16 +72,23 @@ def fetch_url(url, timeout=30, headers=None):
 
 
 def check_ads_txt():
-    """Check if ads.txt is already served on the blog."""
+    """Check if ads.txt is already served on the blog and has valid content."""
     ads_txt_url = BLOG_URL.rstrip("/") + "/ads.txt"
     print(f"\n[1] Checking ads.txt at: {ads_txt_url}")
     success, content = fetch_url(ads_txt_url)
     if success:
-        print(f"  Status: FOUND")
-        print(f"  Content: {content[:500]}")
-        return True, content
+        content_stripped = content.strip()
+        if content_stripped and "google.com" in content_stripped:
+            print(f"  Status: VALID (has content)")
+            print(f"  Content: {content_stripped[:500]}")
+            return True, content
+        else:
+            print(f"  Status: EMPTY (Blogger returns 200 but no content)")
+            print(f"  Raw content: {repr(content[:200])}")
+            print(f"  -> Need to add ads.txt content manually")
+            return False, None
     else:
-        print(f"  Status: NOT FOUND (expected)")
+        print(f"  Status: NOT FOUND")
         print(f"  Error: {content[:200]}")
         return False, None
 
@@ -101,6 +108,9 @@ def find_publisher_id_from_html():
         r'google_ad_client\s*[:=]\s*["\']?(ca-pub-\d+)["\']?',
         r'data-ad-client\s*=\s*["\']?(ca-pub-\d+)["\']?',
         r'google_ad_host\s*[:=]\s*["\']?(ca-pub-\d+)["\']?',
+        r'(adsbygoogle\s*=\s*window\.adsbygoogle\s*\|\|\s*\[\])?\s*.*?(ca-pub-\d{16,})',
+        r'google_ad_slot.*?(ca-pub-\d{16,})',
+        r'<ins[^>]*data-ad-client=["\']?(ca-pub-\d+)["\']?',
         r'(ca-pub-\d{16,})',
         r'pub-(\d{16,})',
     ]
@@ -109,8 +119,11 @@ def find_publisher_id_from_html():
     for pattern in patterns:
         matches = re.findall(pattern, html)
         for match in matches:
-            pub_id = match if match.startswith("ca-pub-") else f"ca-pub-{match}"
-            found_ids.add(pub_id)
+            if isinstance(match, tuple):
+                match = match[-1]  # Take last group if tuple
+            if match:
+                pub_id = match if match.startswith("ca-pub-") else f"ca-pub-{match}"
+                found_ids.add(pub_id)
 
     if found_ids:
         for pid in found_ids:
@@ -118,36 +131,53 @@ def find_publisher_id_from_html():
         return list(found_ids)[0]
     else:
         print(f"  No AdSense publisher ID found in HTML")
+        # Print a snippet of HTML for debugging
+        # Look for any 'pub' or 'adsense' mentions
+        for keyword in ["pub-", "adsense", "adsbygoogle", "ad_client", "ad-client"]:
+            idx = html.lower().find(keyword)
+            if idx >= 0:
+                snippet = html[max(0, idx-30):idx+80]
+                print(f"  Found '{keyword}' in HTML: ...{snippet}...")
         return None
 
 
 def try_adsense_api(access_token):
     """Try AdSense Management API to get publisher ID."""
     print(f"\n[3] Trying AdSense Management API...")
-    req = urllib.request.Request(ADSENSE_API)
-    req.add_header("Authorization", f"Bearer {access_token}")
 
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            accounts = data.get("accounts", [])
-            if accounts:
-                name = accounts[0].get("name", "")
-                pub_id = name.split("/")[-1] if "/" in name else name
-                print(f"  Found AdSense account: {pub_id}")
-                if not pub_id.startswith("ca-pub-"):
-                    pub_id = f"ca-pub-{pub_id}"
-                return pub_id
-            else:
-                print(f"  No AdSense accounts found")
-    except Exception as e:
-        error_msg = str(e)
-        if hasattr(e, "read"):
-            try:
-                error_msg = e.read().decode("utf-8") if e.fp else error_msg
-            except Exception:
-                pass
-        print(f"  AdSense API failed: {error_msg[:300]}")
+    # Try both v2 and v1.4
+    api_urls = [
+        ("v2", "https://www.googleapis.com/adsense/v2/accounts"),
+        ("v1.4", "https://www.googleapis.com/adsense/v1.4/accounts"),
+    ]
+
+    for version, api_url in api_urls:
+        print(f"  Trying AdSense API {version}...")
+        req = urllib.request.Request(api_url)
+        req.add_header("Authorization", f"Bearer {access_token}")
+
+        try:
+            with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                accounts = data.get("accounts", [])
+                if accounts:
+                    acct = accounts[0]
+                    name = acct.get("name", "") or acct.get("id", "")
+                    pub_id = name.split("/")[-1] if "/" in name else name
+                    print(f"  Found AdSense account: {pub_id}")
+                    if not pub_id.startswith("ca-pub-"):
+                        pub_id = f"ca-pub-{pub_id}"
+                    return pub_id
+                else:
+                    print(f"  No AdSense accounts found in {version}")
+        except Exception as e:
+            error_msg = str(e)
+            if hasattr(e, "read"):
+                try:
+                    error_msg = e.read().decode("utf-8") if e.fp else error_msg
+                except Exception:
+                    pass
+            print(f"  AdSense API {version} failed: {error_msg[:300]}")
 
     return None
 
