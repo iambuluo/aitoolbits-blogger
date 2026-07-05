@@ -1,0 +1,44 @@
+name: Setup ads.txt for AdSense
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.trigger-setup-ads-txt'
+
+jobs:
+  setup-ads-txt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup ads.txt
+        env:
+          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+          BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+        run: python scripts/setup_ads_txt.py
+
+      - name: Commit ads.txt if created
+        run: |
+          if [ -f ads.txt ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add ads.txt
+            git commit -m "Add ads.txt for AdSense" || echo "No changes to commit"
+            git push || echo "Push failed (may already be up to date)"
+          else
+            echo "ads.txt not created - publisher ID not found"
+          fi
