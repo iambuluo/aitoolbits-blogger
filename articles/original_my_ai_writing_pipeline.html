@@ -1,0 +1,72 @@
+<div style="max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.8; font-size: 16px; color: #333;">
+
+<h1>我的 AI 写作流水线：5 个工具如何让我一天发 3 篇</h1>
+<p><em>作者：dengf ｜ 发布日期：2026-07-15 ｜ 分类：幕后</em></p>
+
+<p>经常有人问我："你一个人运营这个站，文章哪来的？" 说实话，一半是我写的，一半是流水线跑的。今天不藏着了，把我的完整 AI 写作流水线摊开讲。</p>
+
+<p>先说清楚：<strong>这不是"让 AI 全自动写稿然后直接发"</strong>。如果那样做，就是这个博客被 AdSense 拒的那类"低价值内容"。我的关键在第三步——人工把关。</p>
+
+<h2>每日时间线</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+<thead style="background: #f5f5f5;">
+<tr><th>时段</th><th>动作</th><th>工具</th><th>耗时</th></tr>
+</thead>
+<tbody>
+<tr><td>08:00</td><td>选题 + 抓热点</td><td>GitHub Trending + 人工筛选</td><td>15 min</td></tr>
+<tr><td>08:20</td><td>生成初稿</td><td>DeepSeek (deepseek-chat)</td><td>10 min</td></tr>
+<tr><td>08:35</td><td>改写去 AI 味</td><td>Claude + 我自己改</td><td>25 min</td></tr>
+<tr><td>09:00</td><td>配图</td><td>Unsplash + Remove.bg</td><td>10 min</td></tr>
+<tr><td>09:15</td><td>SEO 摘要 + 发布</td><td>脚本自动 + Blogger API</td><td>5 min</td></tr>
+<tr><td>—</td><td>重复 3 轮</td><td>同上</td><td>共 ~3h</td></tr>
+</tbody>
+</table>
+
+<h2>5 个工具，各自干什么</h2>
+
+<h3>1. GitHub Trending —— 选题源</h3>
+<p>我每天看 trending 里和 AI 相关的 repo，判断哪些值得写。这一步没法自动化，因为"值不值得写"是主观判断。</p>
+
+<h3>2. DeepSeek —— 初稿生成</h3>
+<p>为什么用 DeepSeek 而不是 GPT？便宜且中文好。我给它的 prompt 不是"写一篇 XX 文章"，而是"你是一个用过 XX 工具的人，写下你的真实体验"。这决定了初稿有没有'人味'的底子。</p>
+
+<h3>3. Claude —— 去 AI 味</h3>
+<p>DeepSeek 的初稿经常有"总而言之、毋庸置疑"这类套话。我让 Claude 把所有套路表达换成口语，再自己过一遍。这一步最费时间，但最值钱。</p>
+
+<h3>4. Unsplash + Remove.bg —— 配图</h3>
+<p>Unsplash 找免费图，Remove.bg 抠掉水印背景。比自己拍省事，也比付费图库便宜。</p>
+
+<h3>5. 自写脚本 —— 发布</h3>
+<p>摘要用 DeepSeek 生成 150 字，然后通过 Blogger API 直接发。发布环节全自动，但内容环节全是半自动。</p>
+
+<h2>踩过的坑（都是钱换来的教训）</h2>
+
+<p><strong>坑 1：纯 AI 生成被拒过。</strong> 早期我偷懒让脚本全自动发，结果文章读起来像说明书拼凑。AdSense 第一次拒我就是因为这个。后来加了人工改写才好转。</p>
+
+<p><strong>坑 2：选题重复。</strong> 有阵子连发 5 篇"最佳 AI XX 工具"，自己都觉得水。现在强制每 3 篇里至少有 1 篇是实测或观点型。</p>
+
+<p><strong>坑 3：配图版权。</strong> 用过一次某图库的"免费"图，结果收到投诉邮件。从此只用 Unsplash（MIT 协议）或自己截图。</p>
+
+<h2>为什么不直接全自动</h2>
+<p>我试过。全自动一天能发 20 篇，但那种站活不过三个月——Google 会把你当内容农场，读者也会用脚投票。我现在宁愿一天 3 篇活的，也不要 20 篇死的。</p>
+
+<h2>FAQ</h2>
+
+<p><strong>Q：你真的每篇都自己改吗？</strong><br>
+A：初稿 90% 是 AI，但最终发布版我至少过了一遍，改掉所有"AI 味"表达。署名 dengf 的文章，我对内容负责。</p>
+
+<p><strong>Q：成本多少？</strong><br>
+A：DeepSeek + Claude 一个月不到 $20，图全免费。比雇写手便宜两个数量级。</p>
+
+<p><strong>Q：新手能复制吗？</strong><br>
+A：能。先从"选题靠自己 + AI 写初稿 + 自己改"开始，别一上来就全自动。</p>
+
+<p><strong>Q：会不会被读者发现是 AI 写的？</strong><br>
+A：如果改得到位，读者只会觉得"这人写得挺快挺顺"，不会在意背后有没有 AI。工具是工具，判断是自己的。</p>
+
+<h2>写在最后</h2>
+<p>流水线的意义不是"偷懒"，是"把重复劳动交给机器，把判断留给自己"。这个博客能活到现在，靠的不是发得多，是每篇至少过了我一次手。</p>
+
+<p><em>你的写作流程长什么样？评论区交流一下，说不定我能从你那偷两招。</em></p>
+
+</div>
