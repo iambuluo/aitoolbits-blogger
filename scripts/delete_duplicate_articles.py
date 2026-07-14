@@ -220,7 +220,12 @@ def main():
         print()
 
     # Delete duplicates
-    print("[4/4] Deleting duplicate posts...")
+    DRY_RUN = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
+    if DRY_RUN:
+        print("[4/4] DRY RUN MODE - listing duplicates only, NOT deleting...")
+    else:
+        print("[4/4] Deleting duplicate posts...")
+
     deleted_urls = []
     deleted_titles = []
     success_count = 0
@@ -243,8 +248,14 @@ def main():
             post_title = post.get("title", "Unknown")
             pub_date = post.get("published", "")[:19]
 
-            print(f"  Deleting duplicate #{i+1}: {post_title[:50]}")
+            print(f"  {'WOULD DELETE' if DRY_RUN else 'Deleting'} duplicate #{i+1}: {post_title[:50]}")
             print(f"    Published: {pub_date} | URL: {post_url}")
+
+            if DRY_RUN:
+                deleted_urls.append(post_url)
+                deleted_titles.append(post_title)
+                success_count += 1
+                continue
 
             ok, result = delete_post(access_token, blog_id, post_id)
             if ok:
