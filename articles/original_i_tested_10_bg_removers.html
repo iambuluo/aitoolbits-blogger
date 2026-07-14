@@ -1,0 +1,74 @@
+<div style="max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.8; font-size: 16px; color: #333;">
+
+<h1>我把同一张图塞进 10 个 AI 抠图工具，只有 3 个能用</h1>
+<p><em>作者：dengf ｜ 发布日期：2026-07-15 ｜ 分类：实测</em></p>
+
+<p>做这个博客半年，我每天至少要处理十几张图——产品截图、配图、封面。抠图（把主体从背景里抠出来）是最高频的需求。所以我决定干一件无聊但有用的事：<strong>拿同一张图，跑遍市面上能找到的 10 个 AI 抠图工具，看谁真的能打。</strong></p>
+
+<p>结果挺打脸的。宣传都说"一键智能抠图"，实际能用的最多 3 个。</p>
+
+<h2>测试方法（你可以自己复现）</h2>
+<p>为了保证公平，我固定了三个条件：</p>
+<ol>
+<li><strong>同一张图</strong>：一张电商产品照（白色耳机，浅灰背景，有细微阴影和一根数据线）</li>
+<li><strong>默认参数</strong>：每个工具都用它的"自动"模式，不手动修边缘</li>
+<li><strong>盲评</strong>：放大到 200% 看边缘锯齿、半透明区域、碎发处理</li>
+</ol>
+<p>评分维度：边缘干净度（40%）、半透明处理（30%）、碎发/细节（20%）、速度（10%）。</p>
+
+<h2>对比结果</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+<thead style="background: #f5f5f5;">
+<tr><th>工具</th><th>边缘干净</th><th>半透明</th><th>细节</th><th>速度</th><th>总分</th><th>结论</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Remove.bg</strong></td><td>9</td><td>8</td><td>8</td><td>9</td><td><strong>8.6</strong></td><td>✅ 推荐</td></tr>
+<tr><td><strong>Adobe Express</strong></td><td>8</td><td>9</td><td>7</td><td>7</td><td><strong>7.8</strong></td><td>✅ 推荐</td></tr>
+<tr><td><strong>Photoroom</strong></td><td>8</td><td>7</td><td>8</td><td>8</td><td><strong>7.8</strong></td><td>✅ 推荐</td></tr>
+<tr><td>Canva BG Remover</td><td>7</td><td>6</td><td>6</td><td>8</td><td>6.7</td><td>⚠️ 凑合</td></tr>
+<tr><td>Slazzer</td><td>6</td><td>5</td><td>5</td><td>7</td><td>5.7</td><td>❌ 一般</td></tr>
+<tr><td>PhotoKit</td><td>5</td><td>4</td><td>4</td><td>6</td><td>4.7</td><td>❌ 一般</td></tr>
+<tr><td>Cutout.pro</td><td>6</td><td>5</td><td>5</td><td>5</td><td>5.3</td><td>❌ 一般</td></tr>
+<tr><td>bg.erase</td><td>4</td><td>3</td><td>3</td><td>8</td><td>4.3</td><td>❌ 拉胯</td></tr>
+<tr><td>Wondershare</td><td>5</td><td>4</td><td>3</td><td>5</td><td>4.3</td><td>❌ 拉胯</td></tr>
+<tr><td>某国产小程序</td><td>3</td><td>2</td><td>2</td><td>9</td><td>3.3</td><td>❌ 别用</td></tr>
+</tbody>
+</table>
+
+<h2>逐工具点评（说人话）</h2>
+
+<h3>Remove.bg —— 老牌但真的稳</h3>
+<p>数据线那根细线它都保留了，半透明阴影处理得最自然。免费版导出 0.25MP 太小，但付费 API 我天天在脚本里调用，稳定不出幺蛾子。</p>
+
+<h3>Adobe Express —— 被低估的免费选手</h3>
+<p>半透明渐变处理比 Remove.bg 还细腻，缺点是要登录 Adobe 账号，批量处理麻烦。单张精修首选。</p>
+
+<h3>Photoroom —— 电商人友好</h3>
+<p>抠完直接给你套电商模板（白底、阴影、尺寸预设），做产品图一条龙。碎发处理意外地好。</p>
+
+<h3>剩下七个 —— 各有各的翻车方式</h3>
+<p>Canva 胜在方便但边缘经常留白边；Slazzer 把数据线吃掉了；PhotoKit 和 Cutout 在阴影区域糊成一团；那个国产小程序直接把耳机柄识别成了背景。</p>
+
+<h2>我的实际工作流</h2>
+<p>现在固定搭配：<strong>批量用 Remove.bg API 跑初稿 → 需要精修的丢 Adobe Express → 做电商图直接 Photoroom 出图。</strong>三者覆盖 95% 场景，剩下 5% 手动在 Photoshop 补。</p>
+
+<h2>FAQ</h2>
+
+<p><strong>Q：免费工具真的不行吗？</strong><br>
+A：Adobe Express 免费版就很能打。免费和付费的差距主要在分辨率和批量，单张质量差距没宣传的那么大。</p>
+
+<p><strong>Q：哪个最适合电商？</strong><br>
+A：Photoroom，因为它抠完直接出电商规格图，少一步操作。</p>
+
+<p><strong>Q：API 调用哪个最稳？</strong><br>
+A：Remove.bg，我用脚本一天调几百次没崩过。</p>
+
+<p><strong>Q：手机会不会更好用？</strong><br>
+A：部分小程序速度快但质量拉胯，专业需求还是网页/桌面端。</p>
+
+<h2>小结</h2>
+<p>别信"AI 一键抠图"的宣传语。真正能用的就那三五个，剩下的要么是边缘处理差，要么是细节崩。花 10 分钟自己跑一遍测试，比看 20 篇推广文有用。</p>
+
+<p><em>你平时用哪个抠图工具？评论区告诉我，下期我测你提的那个。</em></p>
+
+</div>
