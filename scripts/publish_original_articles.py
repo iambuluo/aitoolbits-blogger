@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from publish_to_blogger import get_access_token, _try_auto_save_refresh_token, publish_post
+from publish_to_blogger import get_access_token, _try_auto_save_refresh_token, publish_article
 
 BASE_DIR = Path(__file__).parent.parent
 ARTICLES_DIR = BASE_DIR / "articles"
@@ -118,7 +118,7 @@ def main():
     success_count = 0
     for article in results:
         print(f"\n  Publishing: {article['title'][:60]}")
-        result = publish_post(
+        result = publish_article(
             access_token=access_token,
             blog_id=blog_id,
             title=article["title"],
