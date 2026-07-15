@@ -13,6 +13,9 @@ import sys
 import json
 import re
 import glob
+import ssl
+import urllib.request
+import base64
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,14 +28,20 @@ BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 
 
 # Metadata for each original article: file -> (labels, search_description)
+# NOTE: only the NEW originals are listed here. The first two English
+# originals were already published (with Imgur images via fix_original_images).
 ORIGINAL_ARTICLES = {
-    "original_i_tested_10_bg_removers.html": {
+    "original_i_cancelled_3_ai_subs.html": {
         "labels": ["Hands-on Testing", "AI Tools", "Original"],
-        "search_description": "I ran one photo through 10 AI background removers. Only 3 were usable. Full method, scoring table, and tool-by-tool notes.",
+        "search_description": "I cancelled 2 of 3 paid AI subscriptions after testing free alternatives head-to-head. What won, what lost, and what I saved.",
     },
-    "original_my_ai_writing_pipeline.html": {
+    "original_my_underrated_ai_tool.html": {
         "labels": ["Behind the Scenes", "AI Writing", "Original"],
-        "search_description": "How I publish 3 original posts a day using 5 AI tools. My full pipeline, daily timeline, and the mistakes I paid for.",
+        "search_description": "The most underrated tool in my AI stack isn't a chatbot — it's a boring text snippet expander. Why it saves more time than model-switching.",
+    },
+    "original_ai_agent_inbox_week.html": {
+        "labels": ["Hands-on Testing", "AI Agents", "Original"],
+        "search_description": "I let an autonomous AI agent manage my inbox for a week. What it nailed, the two replies it almost sent that embarrassed me, and the fix.",
     },
 }
 
@@ -120,6 +129,46 @@ def extract_title(html: str) -> str:
     return "Untitled"
 
 
+# --- Imgur hosting ---------------------------------------------------------
+# Blogger strips external jsDelivr links and has no working v3 image-upload
+# endpoint; it DOES keep i.imgur.com images. So we host original-article
+# images on Imgur and reference those URLs.
+IMGUR_CLIENT_ID = os.environ.get("IMGUR_CLIENT_ID", "546c25a59c58ad7")
+_IMGUR_CTX = ssl.create_default_context()
+
+
+def _imgur_upload(local_path: Path) -> str:
+    with open(local_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    req = urllib.request.Request(
+        "https://api.imgur.com/3/image",
+        method="POST",
+        data=json.dumps({"image": b64, "type": "base64"}).encode(),
+        headers={
+            "Authorization": f"Client-ID {IMGUR_CLIENT_ID}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=120, context=_IMGUR_CTX) as r:
+        return json.loads(r.read().decode())["data"]["link"]
+
+
+def process_images(html: str, base_dir: Path) -> str:
+    """Replace <img src="local:PATH"> with Imgur-hosted URLs."""
+    import re as _re
+    def _sub(m):
+        full = m.group(0)
+        local_rel = m.group(1)
+        local_path = base_dir / local_rel
+        if not local_path.exists():
+            print(f"    WARN: image not found: {local_rel}")
+            return full
+        url = _imgur_upload(local_path)
+        print(f"    uploaded {local_rel} -> {url}")
+        return full.replace(f"local:{local_rel}", url)
+    return _re.sub(r'src="local:([^"]+)"', _sub, html)
+
+
 def load_credentials():
     client_id = os.environ.get("BLOGGER_CLIENT_ID", "")
     client_secret = os.environ.get("BLOGGER_CLIENT_SECRET", "")
@@ -169,6 +218,9 @@ def main():
 
         with open(filepath, "r", encoding="utf-8") as f:
             html = f.read()
+
+        # Host local images on Imgur (Blogger keeps i.imgur.com)
+        html = process_images(html, BASE_DIR)
 
         title = extract_title(html)
         labels = meta.get("labels", [])
