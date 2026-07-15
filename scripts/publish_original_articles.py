@@ -27,14 +27,87 @@ BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 # Metadata for each original article: file -> (labels, search_description)
 ORIGINAL_ARTICLES = {
     "original_i_tested_10_bg_removers.html": {
-        "labels": ["实测", "AI工具", "原创"],
-        "search_description": "同一张图跑遍10个AI抠图工具，只有3个能打。附测试方法、对比表和逐工具点评。",
+        "labels": ["Hands-on Testing", "AI Tools", "Original"],
+        "search_description": "I ran one photo through 10 AI background removers. Only 3 were usable. Full method, scoring table, and tool-by-tool notes.",
     },
     "original_my_ai_writing_pipeline.html": {
-        "labels": ["幕后", "AI写作", "原创"],
-        "search_description": "我是如何用5个AI工具一天发3篇原创文章的？完整流水线、时间线和踩坑记录全公开。",
+        "labels": ["Behind the Scenes", "AI Writing", "Original"],
+        "search_description": "How I publish 3 original posts a day using 5 AI tools. My full pipeline, daily timeline, and the mistakes I paid for.",
     },
 }
+
+# Old Chinese post titles (and their new English titles) to delete before
+# republishing, so we don't leave stale/duplicate posts on the blog.
+OLD_TITLES_TO_DELETE = [
+    "我把同一张图塞进 10 个 AI 抠图工具，只有 3 个能用",
+    "我的 AI 写作流水线：5 个工具如何让我一天发 3 篇",
+    "I Ran the Same Photo Through 10 AI Background Removers. Only 3 Were Worth Using.",
+    "My AI Writing Pipeline: How 5 Tools Let Me Publish 3 Posts a Day",
+]
+
+
+def fetch_all_posts(access_token: str, blog_id: str):
+    """Fetch all live posts (id, title, url)."""
+    import urllib.request
+    import ssl
+    ctx = ssl.create_default_context()
+    posts = []
+    page_token = None
+    while True:
+        url = f"{BLOGGER_API}/{blog_id}/posts?maxResults=500&status=live&fetchBodies=false"
+        if page_token:
+            url += f"&pageToken={page_token}"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
+        with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        posts.extend(data.get("items", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return posts
+
+
+def delete_post(access_token: str, blog_id: str, post_id: str):
+    """Delete a single post by id."""
+    import urllib.request
+    import ssl
+    ctx = ssl.create_default_context()
+    url = f"{BLOGGER_API}/{blog_id}/posts/{post_id}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"}, method="DELETE")
+    try:
+        with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
+            return True, ""
+    except Exception as e:
+        msg = str(e)
+        if hasattr(e, "read"):
+            try:
+                msg = e.read().decode("utf-8")
+            except Exception:
+                pass
+        return False, msg
+
+
+def delete_old_versions(access_token: str, blog_id: str):
+    """Delete any existing posts whose title matches OLD_TITLES_TO_DELETE."""
+    print("\n[cleanup] Checking for old/duplicate versions to delete...")
+    try:
+        posts = fetch_all_posts(access_token, blog_id)
+    except Exception as e:
+        print(f"  WARN: could not fetch posts ({e}); skipping cleanup.")
+        return
+    targets = {t.strip() for t in OLD_TITLES_TO_DELETE}
+    deleted = 0
+    for p in posts:
+        if p.get("title", "").strip() in targets:
+            pid = p.get("id")
+            title = p.get("title", "")[:50]
+            ok, err = delete_post(access_token, blog_id, pid)
+            if ok:
+                print(f"  DELETED: {title} (id={pid})")
+                deleted += 1
+            else:
+                print(f"  FAILED to delete {title}: {err[:150]}")
+    print(f"  Cleanup done. {deleted} old post(s) deleted.")
 
 
 def extract_title(html: str) -> str:
@@ -82,6 +155,9 @@ def main():
         on_new_refresh=_try_auto_save_refresh_token,
     )
     print("  Token obtained.")
+
+    # Remove old Chinese versions (and any prior English versions) first
+    delete_old_versions(access_token, blog_id)
 
     print("\n[2/3] Finding original articles...")
     results = []
