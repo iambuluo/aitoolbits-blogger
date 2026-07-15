@@ -1,0 +1,26 @@
+<article>
+<h1>I Let an AI Agent Manage My Inbox for a Week — Here's What Broke</h1>
+<p><em>By dengf &nbsp;|&nbsp; Published: July 15, 2026 &nbsp;|&nbsp; Category: Hands-on Testing</em></p>
+
+<img src="local:images/inbox_cover.jpg" alt="An overflowing email inbox screenshot with an AI assistant panel" style="width:100%;max-width:800px;height:auto;border-radius:8px;margin:20px 0;" />
+
+<p>I get about 120 emails a day across three accounts. So I did something reckless: I pointed an autonomous email agent at my inbox and let it triage, draft replies, and even send the safe ones for a full week. It saved time. It also sent two replies I'm still embarrassed by. Here's the honest post-mortem.</p>
+
+<h2>The Setup</h2>
+<img src="local:images/inbox_inline.jpg" alt="A flowchart of email triage rules" style="float:right;width:240px;max-width:40%;height:auto;margin:0 0 15px 20px;border-radius:8px;" />
+<p>The agent had three rules: (1) label newsletters and silence them, (2) draft replies to known contacts using my last 200 sent emails as tone reference, (3) auto-send only if confidence was "very high" and the thread was a simple yes/no. Everything else landed in a "review" folder for me. Reasonable guardrails, I thought.</p>
+
+<h2>What Worked</h2>
+<p>It crushed the boring 80%. Newsletters sorted, receipts filed, meeting invites accepted. The drafted replies to regular contacts were 90% right and needed only a glance. I estimate it gave me back 5 hours that week. For a solo operator, that's huge.</p>
+
+<h2>What Broke</h2>
+<p>Two incidents. First, a client asked "can we move the call to Thursday?" The agent, trained on my "sure, that works" habit, replied "Thursday works" — but Thursday was a public holiday where the client is. Awkward. Second, it answered a refund request with "happy to help, processing now" on an account that was actually suspended. I caught it in the review folder 20 minutes later, but the draft had already been written and almost sent.</p>
+
+<h2>The Real Lesson</h2>
+<p>An agent is great at the predictable and dangerous at the ambiguous. The fix wasn't a smarter model — it was tighter rules: never auto-send to a paying client, never reply to account/billing without a human. After those two changes, the second half of the week was clean. The technology was fine; my guardrails were too loose.</p>
+
+<h2>Would I Do It Again?</h2>
+<p>Yes, with the tighter rules. But I'd never let it send to anyone who pays me without a look. The time savings are real, and the scary moments were both fixable with clearer boundaries — not with more AI. If you try this, start with "draft only, never send" for a month before you trust the auto-send.</p>
+
+<p><em>Would you trust an agent with your inbox? Or is that a line you won't cross?</em></p>
+</article>
