@@ -157,6 +157,7 @@ def main():
     with_img = 0
     orig_label = 0
     title_groups = defaultdict(list)
+    domain_counter = defaultdict(int)
     for p in posts:
         html = p.get("content", "")
         w = _wc(html)
@@ -165,6 +166,12 @@ def main():
             thin.append((p.get("title", ""), w))
         if "<img" in (html or ""):
             with_img += 1
+        for m in re.findall(r'<img[^>]*src="([^"]+)"', html or ""):
+            try:
+                from urllib.parse import urlparse
+                domain_counter[urlparse(m).netloc] += 1
+            except Exception:
+                pass
         labels = [l.lower() for l in p.get("labels", [])]
         if "original" in labels:
             orig_label += 1
@@ -178,6 +185,9 @@ def main():
     print(f"  Median / avg words/post  : {median} / {avg}")
     print(f"  Thin posts (<{THIN_WORDS} words): {thin_n} ({100*thin_n//total if total else 0}%)")
     print(f"  Posts with >=1 image     : {with_img} ({100*with_img//total if total else 0}%)")
+    print(f"  Image src domains (top):")
+    for dom, c in sorted(domain_counter.items(), key=lambda x: -x[1])[:8]:
+        print(f"    {c:4d}  {dom}")
     print(f"  Posts labeled 'Original' : {orig_label}")
 
     # 3. Duplicate titles
