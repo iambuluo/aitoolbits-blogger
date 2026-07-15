@@ -95,6 +95,19 @@ def patch_post(token, blog_id, post_id, content):
 
 
 def main():
+    # Idempotency guard: if no jsDelivr URLs remain in any article HTML,
+    # the fix was already applied (Blogger post patched) — skip re-upload.
+    remaining = 0
+    for fn in ARTICLES:
+        try:
+            html = (BASE / "articles" / fn).read_text(encoding="utf-8")
+            remaining += html.count("jsdelivr.net")
+        except FileNotFoundError:
+            pass
+    if remaining == 0:
+        print("No jsDelivr URLs found in article HTML — images already fixed. Skipping.")
+        return
+
     cid = os.environ["BLOGGER_CLIENT_ID"]
     csec = os.environ["BLOGGER_CLIENT_SECRET"]
     rtk = os.environ["BLOGGER_REFRESH_TOKEN"]
