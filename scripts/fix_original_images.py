@@ -16,7 +16,9 @@ import sys
 import json
 import base64
 import ssl
+import time
 import urllib.request
+import urllib.error
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,16 +28,16 @@ BASE = Path(__file__).parent.parent
 BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 CTX = ssl.create_default_context()
 
-# jsDelivr URL (currently in HTML) -> local PNG path (committed in repo)
+# jsDelivr URL (currently in HTML) -> local JPG path (committed in repo)
 IMG_MAP = {
-    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/bg_cover.png":
-        "images/bg_cover.png",
-    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/bg_inline.png":
-        "images/bg_inline.png",
-    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/pipe_cover.png":
-        "images/pipe_cover.png",
-    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/pipe_inline.png":
-        "images/pipe_inline.png",
+    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/bg_cover.jpg":
+        "images/bg_cover.jpg",
+    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/bg_inline.jpg":
+        "images/bg_inline.jpg",
+    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/pipe_cover.jpg":
+        "images/pipe_cover.jpg",
+    "https://cdn.jsdelivr.net/gh/iambuluo/aitoolbits-blogger@main/images/pipe_inline.jpg":
+        "images/pipe_inline.jpg",
 }
 
 # Article file -> published post title prefix (to locate the post)
@@ -43,6 +45,28 @@ ARTICLES = {
     "original_i_tested_10_bg_removers.html": "I Ran the Same Photo Through 10",
     "original_my_ai_writing_pipeline.html": "My AI Writing Pipeline",
 }
+
+
+def _request_with_retry(req, timeout=180, retries=4, sleep_s=3):
+    """urllib with retries — large base64 POSTs to Blogger can drop the
+    SSL connection (EOF), so retry on transient network errors."""
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
+                return r.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            # Don't retry 4xx client errors (except 429)
+            if e.code == 429:
+                time.sleep(sleep_s * attempt)
+                last_err = e
+                continue
+            raise
+        except (urllib.error.URLError, ssl.SSLError, ConnectionError) as e:
+            last_err = e
+            print(f"    network retry {attempt}/{retries}: {e}")
+            time.sleep(sleep_s * attempt)
+    raise last_err
 
 
 def upload_image(token, blog_id, post_id, png_path):
@@ -59,13 +83,13 @@ def upload_image(token, blog_id, post_id, png_path):
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
-            return json.loads(r.read().decode()).get("url")
+        body = _request_with_retry(req)
+        return json.loads(body).get("url")
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")[:600]
+        err_body = e.read().decode("utf-8", "replace")[:600]
         print(f"  UPLOAD HTTP {e.code} for post {post_id}")
         print(f"  URL: {url}")
-        print(f"  RESP: {body}")
+        print(f"  RESP: {err_body}")
         raise
 
 
@@ -97,8 +121,8 @@ def patch_post(token, blog_id, post_id, content):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=60, context=CTX) as r:
-        return json.loads(r.read().decode())
+    body = _request_with_retry(req, timeout=90)
+    return json.loads(body)
 
 
 def main():
