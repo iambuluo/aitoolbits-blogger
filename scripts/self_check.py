@@ -124,6 +124,16 @@ def main():
         on_new_refresh=_try_auto_save_refresh_token,
     )
 
+    # 0. Proactively fix original-article images via Blogger image API
+    #    (jsDelivr external <img> gets stripped on publish; googleusercontent
+    #     URLs persist). Idempotent — skips if already fixed.
+    try:
+        from fix_original_images import main as _fix_images
+        print("\n[0] Fixing original-article images (Blogger image API)...")
+        _fix_images()
+    except Exception as e:
+        print(f"  Image-fix step error (non-fatal): {e}")
+
     # 1. Trust / policy pages
     print("\n[1] Trust / policy pages")
     pages = get_all_pages(access_token, blog_id)
