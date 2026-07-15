@@ -48,7 +48,7 @@ ARTICLES = {
 
 
 def _request_with_retry(req, timeout=180, retries=4, sleep_s=3):
-    """urllib with retries — large base64 POSTs to Blogger can drop the
+    """urllib with retries — large base64 POSTs can drop the
     SSL connection (EOF), so retry on transient network errors."""
     last_err = None
     for attempt in range(1, retries + 1):
@@ -56,7 +56,6 @@ def _request_with_retry(req, timeout=180, retries=4, sleep_s=3):
             with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
                 return r.read().decode("utf-8")
         except urllib.error.HTTPError as e:
-            # Don't retry 4xx client errors (except 429)
             if e.code == 429:
                 time.sleep(sleep_s * attempt)
                 last_err = e
@@ -69,27 +68,36 @@ def _request_with_retry(req, timeout=180, retries=4, sleep_s=3):
     raise last_err
 
 
-def upload_image(token, blog_id, post_id, png_path):
-    with open(png_path, "rb") as f:
+# Imgur anonymous upload — Blogger keeps i.imgur.com images
+# (proven: blog keeps images.unsplash.com; imgur is the standard Blogger image host)
+IMGUR_CLIENT_ID = os.environ.get("IMGUR_CLIENT_ID", "546c25a59c58ad7")
+
+
+def upload_image(token, blog_id, post_id, img_path):
+    """Upload a local image and return a URL Blogger will keep.
+
+    Blogger's v3 API has NO working image-upload endpoint (404), and it
+    STRIPS external jsDelivr links. So we host on Imgur (i.imgur.com,
+    which Blogger preserves) and reference that URL.
+    """
+    with open(img_path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
-    url = f"{BLOGGER_API}/{blog_id}/posts/{post_id}/images"
+    url = "https://api.imgur.com/3/image"
     req = urllib.request.Request(
         url,
         method="POST",
-        data=json.dumps({"data": b64}).encode(),
+        data=json.dumps({"image": b64, "type": "base64"}).encode(),
         headers={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Client-ID {IMGUR_CLIENT_ID}",
             "Content-Type": "application/json",
         },
     )
     try:
-        body = _request_with_retry(req)
-        return json.loads(body).get("url")
+        body = _request_with_retry(req, timeout=120)
+        return json.loads(body)["data"]["link"]
     except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", "replace")[:600]
-        print(f"  UPLOAD HTTP {e.code} for post {post_id}")
-        print(f"  URL: {url}")
-        print(f"  RESP: {err_body}")
+        err_body = e.read().decode("utf-8", "replace")[:400]
+        print(f"  IMGUR HTTP {e.code}: {err_body}")
         raise
 
 
