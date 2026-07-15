@@ -189,6 +189,15 @@ def main():
         print(f"  {'OK ' if ok else 'MISS'} {t[:45]!r} img={has_img} words={w}")
         if ok:
             found_originals += 1
+        # DUMP raw content for ground-truth check
+        if matches:
+            c = matches[0].get("content", "")
+            imgs = re.findall(r'<img[^>]*src="([^"]+)"', c)
+            print(f"    -> raw <img> count: {len(imgs)}")
+            for s in imgs[:3]:
+                print(f"       src: {s[:90]}")
+            if not imgs:
+                print(f"    -> content head: {re.sub(r'\\s+',' ', c)[:160]}")
     orig_ok = found_originals == len(TARGET_ORIGINALS)
 
     # 5. VERDICT
