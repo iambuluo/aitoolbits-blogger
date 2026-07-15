@@ -58,8 +58,15 @@ def upload_image(token, blog_id, post_id, png_path):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
-        return json.loads(r.read().decode()).get("url")
+    try:
+        with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
+            return json.loads(r.read().decode()).get("url")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:600]
+        print(f"  UPLOAD HTTP {e.code} for post {post_id}")
+        print(f"  URL: {url}")
+        print(f"  RESP: {body}")
+        raise
 
 
 def get_all_posts(token, blog_id):
@@ -117,22 +124,26 @@ def main():
     posts = get_all_posts(token, bid)
 
     for fn, prefix in ARTICLES.items():
-        art = [p for p in posts if p["title"].startswith(prefix)]
-        if not art:
-            print(f"WARN: published post not found for {fn} (prefix={prefix!r})")
-            continue
-        post_id = art[0]["id"]
-        html = (BASE / "articles" / fn).read_text(encoding="utf-8")
+        try:
+            art = [p for p in posts if p["title"].startswith(prefix)]
+            if not art:
+                print(f"WARN: published post not found for {fn} (prefix={prefix!r})")
+                continue
+            post_id = art[0]["id"]
+            print(f"  article {fn}: matched post {post_id}")
+            html = (BASE / "articles" / fn).read_text(encoding="utf-8")
 
-        for jsurl, local in IMG_MAP.items():
-            if jsurl in html:
-                gu = upload_image(token, bid, post_id, BASE / local)
-                print(f"  uploaded {local} -> {gu}")
-                html = html.replace(jsurl, gu)
+            for jsurl, local in IMG_MAP.items():
+                if jsurl in html:
+                    gu = upload_image(token, bid, post_id, BASE / local)
+                    print(f"  uploaded {local} -> {gu}")
+                    html = html.replace(jsurl, gu)
 
-        patch_post(token, bid, post_id, html)
-        print(f"PATCHED {fn} (post {post_id}); jsdelivr left: "
-              f"{html.count('jsdelivr.net')}")
+            patch_post(token, bid, post_id, html)
+            print(f"PATCHED {fn} (post {post_id}); jsdelivr left: "
+                  f"{html.count('jsdelivr.net')}")
+        except Exception as e:
+            print(f"  FAILED to fix {fn}: {e}")
 
 
 if __name__ == "__main__":
