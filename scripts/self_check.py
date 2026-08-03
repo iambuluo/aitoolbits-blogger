@@ -28,8 +28,8 @@ BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 
 THIN_WORDS = 350
 TARGET_ORIGINALS = [
-    "i ran the same photo through 10 ai background removers",
-    "my ai writing pipeline",
+    "i built 12 wordpress plugins for stock photos",
+    "i replaced my $60/month stock subscription",
 ]
 
 
