@@ -273,6 +273,41 @@ def get_blog_id(access_token: str) -> str:
 
 # ==================== Main Pipeline ====================
 
+def sync_published_from_blogger(access_token: str, blog_id: str):
+    """Rebuild data/published_urls.json from the LIVE Blogger blog.
+
+    The dedup DB on disk can be stale (e.g. only 2 entries while the blog has
+    99 posts). Rebuilding it from the live blog every run guarantees the topic
+    picker never re-selects an already-published article -> no duplicate posts.
+    """
+    import urllib.parse
+    from published_urls import save_published_urls
+
+    blogger_api = "https://www.googleapis.com/blogger/v3/blogs"
+    all_posts = []
+    page_token = None
+    for _ in range(12):
+        params = {"maxResults": "500", "status": "live"}
+        if page_token:
+            params["pageToken"] = page_token
+        url = f"{blogger_api}/{blog_id}/posts?{urllib.parse.urlencode(params)}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Bearer {access_token}")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                for p in data.get("items", []):
+                    all_posts.append({"url": p.get("url", ""), "title": p.get("title", "")})
+                page_token = data.get("nextPageToken")
+                if not page_token:
+                    break
+        except Exception as e:
+            print(f"  ⚠ Could not sync published posts from Blogger: {e}")
+            break
+    save_published_urls({"urls": all_posts, "updated_at": None})
+    print(f"  🔄 Synced {len(all_posts)} live posts into dedup database")
+
+
 def run_pipeline(count: int = 1, is_draft: bool = False):
     """Main pipeline: generate articles and publish to Blogger."""
 
@@ -312,6 +347,11 @@ def run_pipeline(count: int = 1, is_draft: bool = False):
         on_new_refresh=_handle_token_rotation,
     )
     print("  Access token obtained.")
+
+    # CRITICAL: rebuild the dedup DB from the LIVE blog before picking topics,
+    # so we never republish an article that's already on the site.
+    print("Syncing published-article database from Blogger (live)...")
+    sync_published_from_blogger(access_token, blog_id)
 
     # Generate articles
     print(f"\nGenerating {count} article(s)...")
