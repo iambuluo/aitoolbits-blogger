@@ -1,0 +1,48 @@
+<article>
+<h1>I Replaced My $60/Month Stock Subscription With a Self-Built Image Library — The Honest Build Log</h1>
+<p><em>By dengf &nbsp;|&nbsp; Published: July 15, 2026 &nbsp;|&nbsp; Category: Hands-on Testing</em></p>
+
+<img src="local:images/self_lib_cover.png" alt="Illustration of building a photo library from floating image thumbnails" style="width:100%;max-width:800px;height:auto;border-radius:8px;margin:20px 0;" />
+
+<p>I run a blog that publishes a lot of posts, and for years I paid a stock-photo subscription — about $60/month — so every article could have a decent hero image. Then I did what anyone who builds image tools for a living would do: I wired the free stock APIs directly into a WordPress plugin and stopped paying. This is the honest log of what happened, including the part where it didn't fully work.</p>
+
+<h2>The Setup</h2>
+<p>I publish roughly 60 images a month across the blog (about 3 per post, some posts more). At typical paid rates of $0.50–$3.00 per image, that subscription was actually the cheap end — à-la-carte would have been $30–$180/month on its own. So $60 felt "reasonable" right up until I realized most of what I needed wasn't premium at all.</p>
+
+<h2>What I Built</h2>
+<img src="local:images/self_lib_cost.png" alt="Bar chart comparing monthly image cost before and after" style="float:right;width:300px;max-width:45%;height:auto;margin:0 0 15px 20px;border-radius:8px;" />
+<p>The plugin is simple on purpose:</p>
+<ul>
+<li>A search box in the post editor that queries <strong>Unsplash, Pexels, and Pixabay</strong> at once.</li>
+<li>Results show the real license, so I only one-click-insert permissive images.</li>
+<li>On insert, the image downloads into my media library (no hot-linking — see my other post on that mistake).</li>
+<li>Everything is cached, so repeated searches don't burn API quota.</li>
+</ul>
+<p>That's it. No AI, no magic. Just the free APIs I was already browsing manually, now one keystroke from the editor.</p>
+
+<h2>The Real Numbers</h2>
+<p>After a month: about 70% of my images came straight from the free APIs. The remaining 30% — specific hero shots, a particular model, an on-brand color I couldn't find — I bought à la carte, averaging around $18. Net cost dropped from $60 to ~$18 a month. That's roughly <strong>$42 saved every month</strong>, compounding to $500+/year, for an afternoon of building.</p>
+
+<h2>Where It Fell Short (The Honest Part)</h2>
+<p>Free sources are not a perfect substitute. Two real gaps:</p>
+<ul>
+<li><strong>Curation fatigue.</strong> Free libraries are huge but uneven. I spend more time skimming for a non-generic shot than I did with a curated paid catalog. For high-traffic hero images I still care about quality, so I'll hunt longer.</li>
+<li><strong>Rare subjects.</strong> When I need something specific — a niche product, a particular pose, an exclusive scene — free results often don't exist. Those I buy, and I'm fine with that.</li>
+</ul>
+<p>So the honest verdict: I didn't replace paid images entirely. I replaced the <em>subscription</em> and kept paid as a targeted top-up. For my volume, that's the sweet spot.</p>
+
+<h2>Would I Recommend It?</h2>
+<p>If you publish a lot and most of your images are generic (blog headers, section art, decorative shots), yes — build or install a free-API plugin and cancel the subscription. If your brand lives on very specific, exclusive imagery, keep a paid plan and just use the plugin to fill the gaps. Either way, you stop paying $60/month for images you could have pulled for free.</p>
+
+<h2>FAQ</h2>
+<p><strong>Is this against the stock sites' terms?</strong><br/>
+No — Unsplash, Pexels, and Pixabay explicitly allow free commercial use. I only insert images whose license permits it, and I never hot-link.</p>
+
+<p><strong>How long did it take to build?</strong><br/>
+An afternoon for a basic version. The caching and license-display parts took longer than the API calls themselves.</p>
+
+<p><strong>What about image quality for SEO?</strong><br/>
+I still compress and add alt text on insert. Free source doesn't mean skipping basic on-page hygiene — that matters more for rankings than where the pixel came from.</p>
+
+<p><em>Want the exact plugin structure I used? I'll write up the throttling and caching code in a follow-up if there's interest.</em></p>
+</article>
