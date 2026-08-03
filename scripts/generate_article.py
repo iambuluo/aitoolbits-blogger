@@ -5,6 +5,7 @@ Generates SEO-optimized blog articles for aitoolbits.blogspot.com
 
 import os
 import json
+import re
 import random
 import hashlib
 from datetime import datetime
@@ -17,12 +18,17 @@ def _is_duplicate(title: str) -> bool:
     return check_if_duplicate(title)["duplicate"]
 
 
-def get_unpublished_topic():
+def get_unpublished_topic(api_key: str = None):
     """Return a random topic whose filled title is NOT a known duplicate.
 
-    This avoids wasting DeepSeek API calls on already-published topics.
-    Returns None when every topic in the pool has already been published
-    (i.e. the topic pool is exhausted and needs new topics added).
+    Picks only from unpublished topics (checked against published_urls.json,
+    which the publish pipeline refreshes from the LIVE Blogger blog every run,
+    so it never re-selects an already-published article).
+
+    If the static topic pool is exhausted, falls back to AI-generated fresh
+    topics (via DeepSeek) so publishing never silently stops. Returns None
+    only when even AI expansion fails (e.g. API error) — callers should then
+    stop gracefully.
     """
     from topics import TOPICS as _TOPICS
     year = datetime.now().year
@@ -38,6 +44,66 @@ def get_unpublished_topic():
                 "keywords": [kw.format(year=year, version=version_str) for kw in base["keywords"]],
                 "type": base["type"],
             }
+    # Static pool exhausted -> try AI-generated fresh topics
+    print("  ⚠ Static topic pool exhausted, generating fresh topics via DeepSeek...")
+    return _self_expand_topic(api_key)
+
+
+def _self_expand_topic(api_key: str = None, attempts: int = 3):
+    """Ask DeepSeek for a fresh, non-duplicate article topic when the pool runs dry.
+
+    Returns a topic dict compatible with generate_article, or None if it cannot
+    produce a unique topic (caller should stop). The chosen topic is still
+    double-checked against the dedup DB before being returned.
+    """
+    if not api_key:
+        return None
+    try:
+        from published_urls import load_published_urls
+        published = [u.get("title", "") for u in load_published_urls().get("urls", [])][-25:]
+    except Exception:
+        published = []
+    sample = "\n".join(f"- {t}" for t in published if t) or "(no titles provided)"
+    prompt = (
+        "You are an editor for an AI-tools review blog (aitoolbits.blogspot.com). "
+        "Suggest ONE fresh, specific, useful blog article topic about AI tools or software "
+        "that is clearly DIFFERENT from the already-published titles below. "
+        "Return ONLY valid JSON (no markdown, no code fences) in this exact shape:\n"
+        '{"title": "Specific Topic Title", "category": "AI Tools", '
+        '"keywords": ["keyword1","keyword2","keyword3"], "type": "review"}\n'
+        'type must be one of: review, comparison, tutorial, list.\n'
+        "Already published (avoid these or anything too similar):\n" + sample
+    )
+    for _ in range(attempts):
+        try:
+            raw = call_deepseek(prompt, api_key)
+        except Exception as e:
+            print(f"  ⚠ DeepSeek topic generation failed: {e}")
+            return None
+        txt = raw.strip()
+        if txt.startswith("```"):
+            txt = txt.split("```", 2)[1]
+            if txt.startswith("json"):
+                txt = txt[4:]
+        try:
+            obj = json.loads(txt)
+        except Exception:
+            m = re.search(r"\{.*\}", txt, re.S)
+            if not m:
+                continue
+            try:
+                obj = json.loads(m.group(0))
+            except Exception:
+                continue
+        title = (obj.get("title") or "").strip()
+        if not title or _is_duplicate(title):
+            continue
+        return {
+            "title": title,
+            "category": obj.get("category", "AI Tools"),
+            "keywords": obj.get("keywords", [title])[:5],
+            "type": obj.get("type", "review"),
+        }
     return None
 
 
@@ -429,7 +495,7 @@ def generate_article(api_key: str = None) -> dict:
     if not api_key:
         raise ValueError("DEEPSEEK_API_KEY is required")
 
-    topic = get_unpublished_topic()
+    topic = get_unpublished_topic(api_key)
     if topic is None:
         raise ValueError("TOPIC_POOL_EXHAUSTED")
 
