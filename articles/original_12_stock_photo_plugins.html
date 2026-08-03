@@ -1,0 +1,39 @@
+<article>
+<h1>I Built 12 WordPress Plugins for Stock Photos — Here's What Every Developer Gets Wrong</h1>
+<p><em>By dengf &nbsp;|&nbsp; Published: July 15, 2026 &nbsp;|&nbsp; Category: Behind the Scenes</em></p>
+
+<img src="local:images/wp_plugin_cover.png" alt="Illustration of a WordPress plugin dashboard showing a grid of stock photos" style="width:100%;max-width:800px;height:auto;border-radius:8px;margin:20px 0;" />
+
+<p>On autophoto.store I've shipped a string of WordPress plugins built around one boring problem: getting the right image into the right post without leaving the editor. Some pull from free stock APIs, some manage local media libraries, a couple bridge paid agencies. After a dozen of these, I can tell you the failures are almost never about "which API is best." They're about three mistakes I made myself, watched others make, and now bake guardrails against by default.</p>
+
+<h2>Mistake 1: Treating the API Like a Database</h2>
+<img src="local:images/wp_plugin_pipeline.png" alt="Data flow diagram of a stock photo plugin showing where builds break" style="float:right;width:300px;max-width:45%;height:auto;margin:0 0 15px 20px;border-radius:8px;" />
+<p>The first version of my image-search plugin fired a live request to the stock API on <em>every</em> page load. It felt instant in testing because I was the only user. The day a client put it on a site with 12,000 media items and a busy homepage, the API rate limit (Unsplash allows 50 requests/hour on its free tier, Pexels is similarly tight) kicked in within minutes and the whole image block went blank.</p>
+
+<p>The fix is boring but non-negotiable: a cache layer. I now store every API response in a WordPress transient keyed by query, with a sane TTL (15–60 minutes), and I serve from cache before I ever touch the network. The diagram on the right is the actual pipeline — notice the cache box is the part almost every first build skips. If you remember one thing: <strong>your stock plugin is a caching layer that occasionally talks to an API, not the other way around.</strong></p>
+
+<h2>Mistake 2: Trusting the License Field Blindly</h2>
+<p>Free doesn't mean "use anywhere, forever, for anything." Unsplash and Pixabay are permissive, but the moment a plugin surfaces mixed sources — say it also shows Shutterstock or Adobe Stock results — the license metadata matters. Early on I displayed a single "Free" badge over a row that mixed Creative Commons and rights-managed shots. That's how a blogger ends up using a rights-managed hero image commercially by accident.</p>
+
+<p>Now every item carries its source and its actual license string, surfaced right in the insert modal, and anything that isn't explicitly permissive for commercial use is labeled and filtered out of the "one-click insert" path. The lesson: <strong>don't normalize licenses away. Show the real one, every time.</strong> It's less convenient for the user, and it's the difference between a tool people trust and a tool that gets them sued.</p>
+
+<h2>Mistake 3: Re-fetching on Insert Instead of Storing Once</h2>
+<p>When a user picks an image, the plugin should download it once into the WordPress media library and reference the local copy. I've seen builds that hot-link the remote URL directly into the post. That "works" until the API changes a URL scheme, rate-limits hotlinking, or the third party deletes the asset — and suddenly a year of published posts have broken images. For a content site that's a slow-motion disaster.</p>
+
+<p>My rule now: insert = download to /uploads, attach to the post, reference the local URL. One fetch, one local copy, zero external dependency for the published page. It also means the image loads fast and survives the source going away.</p>
+
+<h2>The Patterns That Actually Held Up</h2>
+<p>Across all twelve plugins, the things that survived contact with real traffic were the unglamorous ones: aggressive caching, explicit license display, local storage on insert, and a hard cap on concurrent API calls (I throttle to a small worker pool so a search burst can never blow the rate limit). None of that shows up in a feature list. All of it is why the plugins still run.</p>
+
+<h2>FAQ</h2>
+<p><strong>Which stock API should I integrate first?</strong><br/>
+Start with Pexels or Unsplash — clean REST, good free tiers, permissive licenses. Add paid sources (Adobe Stock, Shutterstock) only when a user explicitly needs commercially-cleared or exclusive shots.</p>
+
+<p><strong>Do I really need a cache?</strong><br/>
+Yes. Even at low traffic, caching turns a flaky external dependency into a stable local one. It's the single highest-leverage change I made.</p>
+
+<p><strong>How do I avoid broken images later?</strong><br/>
+Never hot-link. Download the asset into your own media library on insert and reference the local copy.</p>
+
+<p><em>Building your own image tool? Tell me your source mix and I'll tell you which of these three traps you're most likely to hit first.</em></p>
+</article>
