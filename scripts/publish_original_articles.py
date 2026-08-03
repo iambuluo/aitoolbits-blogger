@@ -31,17 +31,13 @@ BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 # NOTE: only the NEW originals are listed here. The first two English
 # originals were already published (with Imgur images via fix_original_images).
 ORIGINAL_ARTICLES = {
-    "original_i_cancelled_3_ai_subs.html": {
-        "labels": ["Hands-on Testing", "AI Tools", "Original"],
-        "search_description": "I cancelled 2 of 3 paid AI subscriptions after testing free alternatives head-to-head. What won, what lost, and what I saved.",
+    "original_12_stock_photo_plugins.html": {
+        "labels": ["Behind the Scenes", "WordPress Plugins", "Original"],
+        "search_description": "After shipping a dozen stock-photo and image-library WordPress plugins, here are the 3 mistakes I see every developer make — and the fix that actually holds up.",
     },
-    "original_my_underrated_ai_tool.html": {
-        "labels": ["Behind the Scenes", "AI Writing", "Original"],
-        "search_description": "The most underrated tool in my AI stack isn't a chatbot — it's a boring text snippet expander. Why it saves more time than model-switching.",
-    },
-    "original_ai_agent_inbox_week.html": {
-        "labels": ["Hands-on Testing", "AI Agents", "Original"],
-        "search_description": "I let an autonomous AI agent manage my inbox for a week. What it nailed, the two replies it almost sent that embarrassed me, and the fix.",
+    "original_self_built_image_library.html": {
+        "labels": ["Hands-on Testing", "Image Library", "Original"],
+        "search_description": "I wired free stock APIs (Unsplash, Pexels, Pixabay) into a WordPress plugin to stop paying $60/month for images. Real numbers, what broke, and when you still need paid.",
     },
 }
 
