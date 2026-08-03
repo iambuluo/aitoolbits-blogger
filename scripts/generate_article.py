@@ -17,6 +17,30 @@ def _is_duplicate(title: str) -> bool:
     return check_if_duplicate(title)["duplicate"]
 
 
+def get_unpublished_topic():
+    """Return a random topic whose filled title is NOT a known duplicate.
+
+    This avoids wasting DeepSeek API calls on already-published topics.
+    Returns None when every topic in the pool has already been published
+    (i.e. the topic pool is exhausted and needs new topics added).
+    """
+    from topics import TOPICS as _TOPICS
+    year = datetime.now().year
+    pool = list(_TOPICS)
+    random.shuffle(pool)
+    for base in pool:
+        version_str = f"{random.randint(6, 8)}.{random.randint(0, 2)}"
+        title = base["title"].format(year=year, version=version_str)
+        if not _is_duplicate(title):
+            return {
+                "title": title,
+                "category": base["category"],
+                "keywords": [kw.format(year=year, version=version_str) for kw in base["keywords"]],
+                "type": base["type"],
+            }
+    return None
+
+
 def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> str:
     """Call DeepSeek API to generate article content."""
     import urllib.request
@@ -405,15 +429,13 @@ def generate_article(api_key: str = None) -> dict:
     if not api_key:
         raise ValueError("DEEPSEEK_API_KEY is required")
 
-    topic = get_random_topic()
+    topic = get_unpublished_topic()
+    if topic is None:
+        raise ValueError("TOPIC_POOL_EXHAUSTED")
+
     prompt = get_article_prompt(topic)
 
     print(f"  Generating: {topic['title']}")
-
-    # Pre-flight duplicate check BEFORE calling the API
-    if _is_duplicate(topic["title"]):
-        print(f"  ⚠ SKIP: Title '{topic['title']}' is a known duplicate")
-        raise ValueError("DUPLICATE_TOPIC")
 
     content = call_deepseek(prompt, api_key)
     content = clean_html(content)
@@ -456,6 +478,9 @@ def generate_multiple(count: int = 1, api_key: str = None) -> list:
                     generated = True
                     print(f"  [{i+1}/{count}] Done: {article['filename']} (attempt {attempts})")
             except ValueError as e:
+                if str(e) == "TOPIC_POOL_EXHAUSTED":
+                    print(f"  [{i+1}/{count}] TOPIC POOL EXHAUSTED - no unpublished topics remain. Stopping.")
+                    return articles
                 if str(e) == "DUPLICATE_TOPIC":
                     continue
                 raise
