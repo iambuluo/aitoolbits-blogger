@@ -7,9 +7,10 @@ Google Indexing 自动提交脚本 (增强版)
 1. 用 Blogger OAuth 获取所有文章 URL
 2. Ping Google PubSubHubbub (无需额外配置)
 3. Ping Google Sitemap (旧版 ping API)
-4. 尝试用 Blogger OAuth 调 Search Console API 提交 sitemap
+4. 尝试用 Service Account (webmasters scope) 调 Search Console API 提交 sitemap；
+   未配置 service account 时回退 Blogger OAuth（通常会因 scope 不足 403）
 5. 如果有 Google Service Account JSON，则用 Indexing API 批量提交
-6. 生成干净 sitemap.xml (绕过 Blogger noindex)
+6. 生成干净 sitemap.xml (绕过 Blogger noindex，供参考/其他搜索引擎)
 7. 通过 Server酱 发送微信通知
 
 环境变量:
@@ -171,31 +172,50 @@ def ping_google_sitemap():
 # 4. Search Console API: 提交 sitemap (用 Blogger OAuth 尝试)
 # ============================================================
 
-def submit_sitemap_via_gsc_api(access_token):
-    """尝试用 Blogger OAuth token 调 Search Console API 提交 sitemap"""
-    # 提交 Atom Feed 作为 sitemap (不带 noindex)
+def _get_gsc_api_token(access_token, service_account_json=None):
+    """优先用 service account (webmasters scope) 拿 token，否则回退 Blogger OAuth。"""
+    if service_account_json:
+        try:
+            return get_service_account_token(
+                service_account_json,
+                ["https://www.googleapis.com/auth/webmasters"],
+            )
+        except Exception as e:
+            print(f"  [!] Service account 获取 webmasters token 失败: {e}")
+    return access_token
+
+
+def submit_sitemap_via_gsc_api(access_token, service_account_json=None):
+    """通过 Search Console API 提交 Blogger Atom Feed 作为 sitemap。
+
+    优先使用 service account (webmasters scope)；未配置则回退到 Blogger OAuth，
+    后者通常会因缺少 webmasters scope 而 403。
+    """
+    # 提交 Atom Feed 作为 sitemap (同域、无 noindex)
     feed_path = "feeds/posts/default?orderby=updated"
-    feed_url_encoded = urllib.parse.quote(f"{BLOG_URL}/{feed_path}", safe="")
+    feed_url = f"{BLOG_URL}/{feed_path}"
+    feed_url_encoded = urllib.parse.quote(feed_url, safe="")
     api_url = f"https://www.googleapis.com/webmasters/v3/sites/{SITE_URL_ENCODED}/sitemaps/{feed_url_encoded}"
 
+    token = _get_gsc_api_token(access_token, service_account_json)
     req = urllib.request.Request(api_url, method="PUT", data=b"")
-    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
 
     try:
         with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
             status = resp.status
             body = resp.read().decode("utf-8", errors="ignore")
-            print(f"  [OK] GSC API sitemap 提交成功 (HTTP {status})")
+            print(f"  [OK] GSC API sitemap 提交成功 (HTTP {status}) - {feed_url}")
             return True
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8", errors="ignore")
         if e.code == 403:
             print(f"  [i] GSC API 权限不足 (需要 webmasters scope)，跳过")
-            print(f"  [i] 这是正常的 - Blogger OAuth 没有 Search Console 权限")
+            print(f"  [i] 如需自动提交 sitemap，请在 GitHub Secrets 配置 GOOGLE_SERVICE_ACCOUNT_JSON")
             return False
         elif e.code == 409:
-            print(f"  [OK] GSC API sitemap 已存在 (HTTP 409)")
+            print(f"  [OK] GSC API sitemap 已存在 (HTTP 409) - {feed_url}")
             return True
         else:
             print(f"  [!] GSC API 错误: HTTP {e.code} - {error_body[:200]}")
@@ -205,11 +225,12 @@ def submit_sitemap_via_gsc_api(access_token):
         return False
 
 
-def check_gsc_sitemap_status(access_token):
+def check_gsc_sitemap_status(access_token, service_account_json=None):
     """查询 GSC sitemap 状态"""
     api_url = f"https://www.googleapis.com/webmasters/v3/sites/{SITE_URL_ENCODED}/sitemaps"
+    token = _get_gsc_api_token(access_token, service_account_json)
     req = urllib.request.Request(api_url)
-    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Authorization", f"Bearer {token}")
 
     try:
         with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
@@ -218,7 +239,11 @@ def check_gsc_sitemap_status(access_token):
             if sitemaps:
                 print(f"  [OK] GSC 已有 {len(sitemaps)} 个 sitemap:")
                 for sm in sitemaps:
-                    print(f"    - {sm.get('path','')} | 状态: {sm.get('errors','')} | 已发现: {sm.get('isPending','')}")
+                    path = sm.get("path", "")
+                    errors = sm.get("errors", "-")
+                    warnings = sm.get("warnings", "-")
+                    is_pending = sm.get("isPending", False)
+                    print(f"    - {path} | 错误: {errors} | 警告: {warnings} | 待处理: {is_pending}")
             else:
                 print("  [i] GSC 暂无 sitemap 记录")
             return sitemaps
@@ -237,8 +262,8 @@ def check_gsc_sitemap_status(access_token):
 # 5. Google Indexing API: 批量提交 URL (需要 Service Account)
 # ============================================================
 
-def get_indexing_api_token(service_account_json):
-    """用 service account JSON 获取 Indexing API access token"""
+def get_service_account_token(service_account_json, scopes):
+    """用 service account JSON 获取指定 scope 的 access token"""
     import base64
 
     sa = json.loads(service_account_json) if isinstance(service_account_json, str) else service_account_json
@@ -247,9 +272,10 @@ def get_indexing_api_token(service_account_json):
 
     now = int(time.time())
     header = {"alg": "RS256", "typ": "JWT"}
+    scope_str = " ".join(scopes) if isinstance(scopes, (list, tuple)) else scopes
     payload = {
         "iss": client_email,
-        "scope": "https://www.googleapis.com/auth/indexing",
+        "scope": scope_str,
         "aud": "https://oauth2.googleapis.com/token",
         "exp": now + 3600,
         "iat": now,
@@ -292,6 +318,11 @@ def get_indexing_api_token(service_account_json):
     with urllib.request.urlopen(req, timeout=30, context=CTX) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         return result["access_token"]
+
+
+def get_indexing_api_token(service_account_json):
+    """用 service account JSON 获取 Indexing API access token"""
+    return get_service_account_token(service_account_json, ["https://www.googleapis.com/auth/indexing"])
 
 
 def submit_url_to_indexing_api(token, url):
@@ -455,6 +486,9 @@ def main():
         print("\n[X] 没有获取到任何文章 URL，退出")
         return
 
+    # Service account JSON（如配置则同时用于 GSC sitemap + Indexing API）
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+
     # Step 2: PubSubHubbub ping
     print("\n[2/7] Ping Google PubSubHubbub...")
     ping_result = ping_pubsubhubbub()
@@ -463,18 +497,17 @@ def main():
     print("\n[3/7] Ping Google Sitemap (旧版 API)...")
     sitemap_ping_result = ping_google_sitemap()
 
-    # Step 4: GSC API 提交 sitemap (用 Blogger OAuth 尝试)
+    # Step 4: GSC API 提交 sitemap（service account 优先，否则回退 Blogger OAuth）
     print("\n[4/7] 尝试 Search Console API 提交 sitemap...")
     gsc_result = False
-    if access_token:
-        gsc_result = submit_sitemap_via_gsc_api(access_token)
-        check_gsc_sitemap_status(access_token)
+    if access_token or sa_json:
+        gsc_result = submit_sitemap_via_gsc_api(access_token, sa_json)
+        check_gsc_sitemap_status(access_token, sa_json)
     else:
-        print("  [i] 无 access token，跳过 GSC API")
+        print("  [i] 无 access token / service account，跳过 GSC API")
 
     # Step 5: Indexing API 提交 (如果配置了 service account)
     print("\n[5/7] Google Indexing API 提交...")
-    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     indexing_result = None
 
     if sa_json:
