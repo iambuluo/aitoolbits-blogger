@@ -8,6 +8,7 @@ import json
 import re
 import random
 import hashlib
+import time
 from datetime import datetime
 from topics import get_random_topic, get_article_prompt
 
@@ -162,15 +163,27 @@ def call_deepseek(prompt: str, api_key: str, model: str = "deepseek-chat") -> st
     )
     req.add_header("Content-Type", "application/json")
 
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            return result["choices"][0]["message"]["content"]
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8") if e.fp else ""
-        raise Exception(f"DeepSeek API error {e.code}: {error_body}")
-    except Exception as e:
-        raise Exception(f"DeepSeek API request failed: {e}")
+    import http.client
+    last_err = None
+    for _attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                return result["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            # Retry only on transient server/rate-limit errors, not auth/quota
+            if e.code in (429, 500, 502, 503, 504):
+                last_err = e
+                time.sleep(3 * (_attempt + 1))
+                continue
+            error_body = e.read().decode("utf-8") if e.fp else ""
+            raise Exception(f"DeepSeek API error {e.code}: {error_body}")
+        except (http.client.IncompleteRead, urllib.error.URLError,
+                TimeoutError, ConnectionError) as e:
+            last_err = e
+            time.sleep(3 * (_attempt + 1))
+            continue
+    raise Exception(f"DeepSeek API request failed after retries: {last_err}")
 
 
 def call_deepseek_trending(prompt: str, api_key: str, model: str = "deepseek-chat") -> str:
