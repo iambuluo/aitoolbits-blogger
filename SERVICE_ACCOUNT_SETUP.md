@@ -5,8 +5,10 @@
 ## 为什么需要这个？
 
 Blogger 的 `sitemap.xml` 自带 `X-Robots-Tag: noindex` 头，导致 GSC 显示"无法抓取"。
-通过 Google Indexing API 可以绕过 sitemap，直接告诉 Google "这些 URL 有更新，请抓取"。
-Indexing API 需要一个 Service Account 来认证。
+通过 Google Indexing API 可以直接告诉 Google "这些 URL 有更新，请抓取"。
+同时，用同一个 Service Account 还能调用 Search Console API，把 Blogger Atom Feed 作为 sitemap 提交给 GSC。
+
+这两个能力都需要 Service Account 认证。当前仓库的脚本会在你配置 `GOOGLE_SERVICE_ACCOUNT_JSON` 后同时启用它们。
 
 ---
 
@@ -24,12 +26,15 @@ Indexing API 需要一个 Service Account 来认证。
 3. 项目名：`aitoolbits-indexing`
 4. 点击「创建」
 
-### 第 3 步：启用 Indexing API
+### 第 3 步：启用 Indexing API + Search Console API
 
 1. 左侧菜单 →「API 和服务」→「信息中心」
 2. 点击「+ 启用 API 和服务」
-3. 搜索 `Web Search Indexing API`
-4. 点击它 →「启用」
+3. 搜索并启用 **`Web Search Indexing API`**
+4. 再次点击「+ 启用 API 和服务」
+5. 搜索并启用 **`Google Search Console API`**（旧称 Webmasters API）
+
+> 只启用 Indexing API 只能推送 URL；同时启用 Search Console API 才能自动向 GSC 提交 sitemap。
 
 ### 第 4 步：创建 Service Account
 
@@ -81,13 +86,14 @@ Indexing API 需要一个 Service Account 来认证。
 
 如果看到类似输出：
 ```
-[OK] (1/57) https://aitoolbits.blogspot.com/2026/06/...
-[OK] (2/57) https://aitoolbits.blogspot.com/2026/06/...
+[OK] GSC API sitemap 提交成功 (HTTP 200) - https://aitoolbits.blogspot.com/feeds/posts/default?orderby=updated
+[OK] (1/126) https://aitoolbits.blogspot.com/2026/08/...
+[OK] (2/126) https://aitoolbits.blogspot.com/2026/08/...
 ...
-提交完成: 成功 57, 失败 0
+提交完成: 成功 126, 失败 0
 ```
 
-说明 Indexing API 已经正常工作！
+说明 Indexing API + GSC sitemap 都已正常工作！
 
 ---
 
@@ -97,10 +103,10 @@ Indexing API 需要一个 Service Account 来认证。
 A: 脚本仍然会运行，但只做 PubSubHubbub ping（效果较弱）。Indexing API 是最有效的自动索引提交方式。
 
 **Q: 这个脚本多久运行一次？**
-A: 每天北京时间 09:00 自动运行。也可以随时手动触发。
+A: 每天北京时间 09:00 自动运行。也可以推送 `.trigger-indexing` 文件或手动触发。
 
 **Q: 会消耗 Google API 配额吗？**
-A: Indexing API 免费配额：每天 200 次请求。你的博客约 57 篇文章，完全够用。
+A: Indexing API 免费配额：每天 200 次请求。当前 126 篇文章，每天全部提交一次完全够用。
 
 **Q: 已经提交过的 URL 重复提交有问题吗？**
 A: 没有。Google 会智能判断 URL 是否有更新，重复提交不会受罚。
