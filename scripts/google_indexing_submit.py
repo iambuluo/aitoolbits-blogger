@@ -351,7 +351,7 @@ def submit_url_to_indexing_api(token, url):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _refresh_token_if_needed(token_birth, service_account_json):
+def _refresh_token_if_needed(token, token_birth, service_account_json):
     """access_token 1 小时过期，50 分钟刷新一次"""
     if time.time() - token_birth > 3000:  # 50 分钟
         print("  [i] access_token 接近过期（>50min），重新换取...")
@@ -381,7 +381,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
     print(f"  [i] 开始逐个提交 {len(urls)} 个 URL 到 Indexing API...")
     start_time = time.time()
     for i, url in enumerate(urls):
-        token, token_birth = _refresh_token_if_needed(token_birth, service_account_json)
+        token, token_birth = _refresh_token_if_needed(token, token_birth, service_account_json)
         print(f"  [i] 正在提交 ({i+1}/{len(urls)})...")
         try:
             submit_url_to_indexing_api(token, url)
@@ -410,7 +410,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
                     print(f"  [!] 速率限制 (429)，第 {attempt} 次退避 {delay} 秒...")
                     time.sleep(delay)
                     try:
-                        token, token_birth = _refresh_token_if_needed(token_birth, service_account_json)
+                        token, token_birth = _refresh_token_if_needed(token, token_birth, service_account_json)
                         submit_url_to_indexing_api(token, url)
                         submitted += 1
                         retried_ok = True
