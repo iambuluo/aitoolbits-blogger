@@ -351,10 +351,19 @@ def submit_url_to_indexing_api(token, url):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _refresh_token_if_needed(token_birth, service_account_json):
+    """access_token 1 小时过期，50 分钟刷新一次"""
+    if time.time() - token_birth > 3000:  # 50 分钟
+        print("  [i] access_token 接近过期（>50min），重新换取...")
+        return get_indexing_api_token(service_account_json), time.time()
+    return token, token_birth
+
+
 def submit_urls_via_indexing_api(urls, service_account_json):
     """批量提交 URL 到 Indexing API"""
     try:
         token = get_indexing_api_token(service_account_json)
+        token_birth = time.time()
     except Exception as e:
         print(f"  [!] 获取 Indexing API token 失败: {e}")
         return {"submitted": 0, "failed": len(urls), "errors": [str(e)]}
@@ -372,6 +381,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
     print(f"  [i] 开始逐个提交 {len(urls)} 个 URL 到 Indexing API...")
     start_time = time.time()
     for i, url in enumerate(urls):
+        token, token_birth = _refresh_token_if_needed(token_birth, service_account_json)
         print(f"  [i] 正在提交 ({i+1}/{len(urls)})...")
         try:
             submit_url_to_indexing_api(token, url)
@@ -379,7 +389,20 @@ def submit_urls_via_indexing_api(urls, service_account_json):
             print(f"  [OK] ({i+1}/{len(urls)}) {url}")
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="ignore")
-            if e.code == 429:
+            if e.code == 401:
+                # token 可能过期，立即刷新并重试一次
+                print(f"  [!] HTTP 401，尝试刷新 token 后重试...")
+                try:
+                    token = get_indexing_api_token(service_account_json)
+                    token_birth = time.time()
+                    submit_url_to_indexing_api(token, url)
+                    submitted += 1
+                    print(f"  [OK] (token 刷新重试) ({i+1}/{len(urls)}) {url}")
+                except Exception as e2:
+                    failed += 1
+                    errors.append(f"{url}: HTTP 401 (refresh retry failed) - {e2}")
+                    print(f"  [X] ({i+1}/{len(urls)}) {url}: 401 刷新重试失败: {e2}")
+            elif e.code == 429:
                 # 指数退避：60s, 120s, 240s，最多 3 次
                 backoff_delays = [60, 120, 240]
                 retried_ok = False
@@ -387,6 +410,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
                     print(f"  [!] 速率限制 (429)，第 {attempt} 次退避 {delay} 秒...")
                     time.sleep(delay)
                     try:
+                        token, token_birth = _refresh_token_if_needed(token_birth, service_account_json)
                         submit_url_to_indexing_api(token, url)
                         submitted += 1
                         retried_ok = True
