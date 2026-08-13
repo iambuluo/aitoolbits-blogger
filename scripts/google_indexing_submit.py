@@ -72,7 +72,7 @@ def get_blogger_access_token():
     )
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
-    with urllib.request.urlopen(req, timeout=(10, 10), context=CTX) as resp:
+    with urllib.request.urlopen(req, timeout=12, context=CTX) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         return result["access_token"]
 
@@ -92,7 +92,7 @@ def get_all_post_urls(access_token, blog_id):
         req = urllib.request.Request(url)
         req.add_header("Authorization", f"Bearer {access_token}")
 
-        with urllib.request.urlopen(req, timeout=(10, 10), context=CTX) as resp:
+        with urllib.request.urlopen(req, timeout=12, context=CTX) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             posts = data.get("items", [])
             for post in posts:
@@ -110,7 +110,7 @@ def get_urls_from_sitemap():
     import re
     req = urllib.request.Request(f"{BLOG_URL}/sitemap.xml")
     req.add_header("User-Agent", "Mozilla/5.0")
-    with urllib.request.urlopen(req, timeout=(10, 10), context=CTX) as resp:
+    with urllib.request.urlopen(req, timeout=12, context=CTX) as resp:
         content = resp.read().decode("utf-8")
         urls = re.findall(r"<loc>(https://aitoolbits\.blogspot\.com/[^<]+)</loc>", content)
     return urls
@@ -319,7 +319,7 @@ def get_service_account_token(service_account_json, scopes):
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
     print("    [i] 正在用 service account 换取 Google access token...")
-    with urllib.request.urlopen(req, timeout=(10, 10), context=CTX) as resp:
+    with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         print("    [OK] Service account token 获取成功")
         return result["access_token"]
@@ -339,7 +339,7 @@ def submit_url_to_indexing_api(token, url):
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
 
-    with urllib.request.urlopen(req, timeout=(8, 8), context=CTX) as resp:
+    with urllib.request.urlopen(req, timeout=10, context=CTX) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
