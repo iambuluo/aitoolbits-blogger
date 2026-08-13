@@ -16,7 +16,7 @@ on:
 jobs:
   submit-indexing:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: write
 
@@ -40,6 +40,8 @@ jobs:
           BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
           BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
           BLOGGER_BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SERVER_CHAN_KEY: ${{ secrets.SERVER_CHAN_KEY }}
         run: |
           echo "=== Secrets Status ==="
           MISSING=""
@@ -58,14 +60,14 @@ jobs:
             exit 1
           fi
 
-          # Check optional secrets
-          if [ -n "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]; then
+          # Check optional secrets (must read from env, do not expand multiline JSON in shell)
+          if [ -n "${GOOGLE_SERVICE_ACCOUNT_JSON}" ]; then
             echo "  GOOGLE_SERVICE_ACCOUNT_JSON: OK"
           else
             echo "  GOOGLE_SERVICE_ACCOUNT_JSON: NOT SET (Indexing API will be skipped)"
           fi
 
-          if [ -n "${{ secrets.SERVER_CHAN_KEY }}" ]; then
+          if [ -n "${SERVER_CHAN_KEY}" ]; then
             echo "  SERVER_CHAN_KEY: OK"
           else
             echo "  SERVER_CHAN_KEY: NOT SET"
