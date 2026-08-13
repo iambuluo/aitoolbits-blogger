@@ -360,7 +360,7 @@ def submit_urls_via_indexing_api(urls, service_account_json):
         return {"submitted": 0, "failed": len(urls), "errors": [str(e)]}
 
     # 允许通过环境变量限制测试数量；默认 0 表示全部提交
-    limit = int(os.environ.get("INDEXING_API_LIMIT", "5") or 5)
+    limit = int(os.environ.get("INDEXING_API_LIMIT", "0") or 0)
     if limit and limit < len(urls):
         print(f"  [i] 测试模式：仅提交前 {limit} 个 URL (INDEXING_API_LIMIT={limit})")
         urls = urls[:limit]
@@ -378,20 +378,34 @@ def submit_urls_via_indexing_api(urls, service_account_json):
             submitted += 1
             print(f"  [OK] ({i+1}/{len(urls)}) {url}")
         except urllib.error.HTTPError as e:
-            failed += 1
             error_body = e.read().decode("utf-8", errors="ignore")
             if e.code == 429:
-                print(f"  [!] 速率限制，等待 60 秒...")
-                time.sleep(60)
-                try:
-                    submit_url_to_indexing_api(token, url)
-                    submitted += 1
-                    failed -= 1
-                    print(f"  [OK] (重试) ({i+1}/{len(urls)}) {url}")
-                except Exception as e2:
-                    errors.append(f"{url}: {e2}")
-                    print(f"  [X] (重试失败) ({i+1}/{len(urls)}) {url}: {e2}")
+                # 指数退避：60s, 120s, 240s，最多 3 次
+                backoff_delays = [60, 120, 240]
+                retried_ok = False
+                for attempt, delay in enumerate(backoff_delays, start=1):
+                    print(f"  [!] 速率限制 (429)，第 {attempt} 次退避 {delay} 秒...")
+                    time.sleep(delay)
+                    try:
+                        submit_url_to_indexing_api(token, url)
+                        submitted += 1
+                        retried_ok = True
+                        print(f"  [OK] (退避重试) ({i+1}/{len(urls)}) {url}")
+                        break
+                    except urllib.error.HTTPError as e2:
+                        if e2.code == 429:
+                            continue
+                        print(f"  [X] (退避重试失败) ({i+1}/{len(urls)}) {url}: HTTP {e2.code}")
+                        break
+                    except Exception as e2:
+                        print(f"  [X] (退避重试失败) ({i+1}/{len(urls)}) {url}: {e2}")
+                        break
+                if not retried_ok:
+                    failed += 1
+                    errors.append(f"{url}: HTTP 429 (rate limited after retries)")
+                    print(f"  [X] ({i+1}/{len(urls)}) {url}: 429 重试耗尽")
             else:
+                failed += 1
                 errors.append(f"{url}: HTTP {e.code} - {error_body[:100]}")
                 print(f"  [X] ({i+1}/{len(urls)}) {url}: HTTP {e.code}")
         except Exception as e:
@@ -402,7 +416,8 @@ def submit_urls_via_indexing_api(urls, service_account_json):
         elapsed = time.time() - start_time
         print(f"    [i] 累计耗时: {elapsed:.1f}s")
         if i < len(urls) - 1:
-            time.sleep(1)
+            # 降低频率以减少 429：每 3 秒一个请求
+            time.sleep(3)
 
     print(f"  [i] Indexing API 提交结束，总耗时: {time.time() - start_time:.1f}s")
     return {"submitted": submitted, "failed": failed, "errors": errors}
