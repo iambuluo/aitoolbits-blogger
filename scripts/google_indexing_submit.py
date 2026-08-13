@@ -359,92 +359,144 @@ def _refresh_token_if_needed(token, token_birth, service_account_json):
     return token, token_birth
 
 
+def _indexing_progress_path():
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(repo_root, "data", "indexing_progress.json")
+
+
+def _load_submitted_index():
+    """读取已成功提交的 URL 集合（增量续传用）"""
+    try:
+        with open(_indexing_progress_path(), "r", encoding="utf-8") as f:
+            return set(json.load(f).get("submitted", []))
+    except Exception:
+        return set()
+
+
+def _save_submitted_index(submitted_set):
+    """持久化已提交 URL 集合到仓库，便于跨 run 增量续传"""
+    path = _indexing_progress_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "submitted": sorted(submitted_set),
+            "updated_at": datetime.utcnow().isoformat() + "Z",
+            "count": len(submitted_set),
+        }, f, indent=2, ensure_ascii=False)
+
+
 def submit_urls_via_indexing_api(urls, service_account_json):
-    """批量提交 URL 到 Indexing API"""
+    """增量提交 URL 到 Indexing API（抗 429 限流 + 跨 run 续传）
+
+    Google 对新站/低信任站点的 Indexing API 限流极严（常 1-2 个请求后即 429），
+    因此改为：每次只提交一小批未提交过的 URL，记录进度，每日 run 逐步推进；
+    限流严重时提前收工（进度已保存），避免白白耗尽 90 分钟。
+    """
     try:
         token = get_indexing_api_token(service_account_json)
         token_birth = time.time()
     except Exception as e:
         print(f"  [!] 获取 Indexing API token 失败: {e}")
-        return {"submitted": 0, "failed": len(urls), "errors": [str(e)]}
+        return {"submitted": 0, "failed": len(urls), "errors": [str(e)], "total_done": 0}
 
-    # 允许通过环境变量限制测试数量；默认 0 表示全部提交
-    limit = int(os.environ.get("INDEXING_API_LIMIT", "0") or 0)
-    if limit and limit < len(urls):
-        print(f"  [i] 测试模式：仅提交前 {limit} 个 URL (INDEXING_API_LIMIT={limit})")
-        urls = urls[:limit]
+    # 增量：跳过已成功提交的 URL
+    done = _load_submitted_index()
+    remaining = [u for u in urls if u not in done]
+    if not remaining:
+        print(f"  [i] 全部 {len(urls)} 个 URL 均已提交过，本次跳过")
+        return {"submitted": 0, "failed": 0, "errors": [], "total_done": len(done)}
+
+    # 本次批次大小：默认 10，可用 INDEXING_BATCH_SIZE 调整；INDEXING_API_LIMIT 作硬上限
+    batch = int(os.environ.get("INDEXING_BATCH_SIZE", "10") or 10)
+    hard = int(os.environ.get("INDEXING_API_LIMIT", "0") or 0)
+    if hard and hard < batch:
+        batch = hard
+    batch_urls = remaining[:batch]
 
     submitted = 0
     failed = 0
     errors = []
-
-    print(f"  [i] 开始逐个提交 {len(urls)} 个 URL 到 Indexing API...")
+    print(f"  [i] 总计 {len(urls)} URL | 已提交 {len(done)} | 本次计划 {len(batch_urls)} 个")
     start_time = time.time()
-    for i, url in enumerate(urls):
+
+    # 429 退避序列（更长，适配 Google 严格限流）
+    backoff_delays = [120, 300, 600]
+
+    for i, url in enumerate(batch_urls):
         token, token_birth = _refresh_token_if_needed(token, token_birth, service_account_json)
-        print(f"  [i] 正在提交 ({i+1}/{len(urls)})...")
+        print(f"  [i] 正在提交 ({i+1}/{len(batch_urls)})...")
         try:
             submit_url_to_indexing_api(token, url)
             submitted += 1
-            print(f"  [OK] ({i+1}/{len(urls)}) {url}")
+            done.add(url)
+            _save_submitted_index(done)
+            print(f"  [OK] ({i+1}/{len(batch_urls)}) {url}")
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="ignore")
             if e.code == 401:
-                # token 可能过期，立即刷新并重试一次
-                print(f"  [!] HTTP 401，尝试刷新 token 后重试...")
+                print(f"  [!] HTTP 401，刷新 token 后重试...")
                 try:
                     token = get_indexing_api_token(service_account_json)
                     token_birth = time.time()
                     submit_url_to_indexing_api(token, url)
                     submitted += 1
-                    print(f"  [OK] (token 刷新重试) ({i+1}/{len(urls)}) {url}")
+                    done.add(url)
+                    _save_submitted_index(done)
+                    print(f"  [OK] (token 刷新重试) ({i+1}/{len(batch_urls)}) {url}")
                 except Exception as e2:
                     failed += 1
-                    errors.append(f"{url}: HTTP 401 (refresh retry failed) - {e2}")
-                    print(f"  [X] ({i+1}/{len(urls)}) {url}: 401 刷新重试失败: {e2}")
+                    errors.append(f"{url}: HTTP 401 retry failed - {e2}")
+                    print(f"  [X] ({i+1}/{len(batch_urls)}) {url}: 401 重试失败: {e2}")
             elif e.code == 429:
-                # 指数退避：60s, 120s, 240s，最多 3 次
-                backoff_delays = [60, 120, 240]
                 retried_ok = False
                 for attempt, delay in enumerate(backoff_delays, start=1):
-                    print(f"  [!] 速率限制 (429)，第 {attempt} 次退避 {delay} 秒...")
+                    print(f"  [!] 速率限制 (429)，第 {attempt} 次退避 {delay}s...")
                     time.sleep(delay)
                     try:
                         token, token_birth = _refresh_token_if_needed(token, token_birth, service_account_json)
                         submit_url_to_indexing_api(token, url)
                         submitted += 1
                         retried_ok = True
-                        print(f"  [OK] (退避重试) ({i+1}/{len(urls)}) {url}")
+                        done.add(url)
+                        _save_submitted_index(done)
+                        print(f"  [OK] (退避重试) ({i+1}/{len(batch_urls)}) {url}")
                         break
                     except urllib.error.HTTPError as e2:
                         if e2.code == 429:
                             continue
-                        print(f"  [X] (退避重试失败) ({i+1}/{len(urls)}) {url}: HTTP {e2.code}")
+                        failed += 1
+                        errors.append(f"{url}: HTTP {e2.code} during backoff")
+                        print(f"  [X] (退避中) ({i+1}/{len(batch_urls)}) {url}: HTTP {e2.code}")
                         break
                     except Exception as e2:
-                        print(f"  [X] (退避重试失败) ({i+1}/{len(urls)}) {url}: {e2}")
+                        failed += 1
+                        errors.append(f"{url}: {e2} during backoff")
+                        print(f"  [X] (退避中) ({i+1}/{len(batch_urls)}) {url}: {e2}")
                         break
                 if not retried_ok:
                     failed += 1
-                    errors.append(f"{url}: HTTP 429 (rate limited after retries)")
-                    print(f"  [X] ({i+1}/{len(urls)}) {url}: 429 重试耗尽")
+                    errors.append(f"{url}: HTTP 429 (rate limited, exhausted)")
+                    print(f"  [X] ({i+1}/{len(batch_urls)}) {url}: 429 重试耗尽")
+                    # 限流严重，提前结束本批（进度已保存），避免浪费 run 时间
+                    print(f"  [!] 限流严重，提前结束本次批次；已提交进度已持久化")
+                    break
             else:
                 failed += 1
                 errors.append(f"{url}: HTTP {e.code} - {error_body[:100]}")
-                print(f"  [X] ({i+1}/{len(urls)}) {url}: HTTP {e.code}")
+                print(f"  [X] ({i+1}/{len(batch_urls)}) {url}: HTTP {e.code}")
         except Exception as e:
             failed += 1
             errors.append(f"{url}: {e}")
-            print(f"  [X] ({i+1}/{len(urls)}) {url}: {e}")
+            print(f"  [X] ({i+1}/{len(batch_urls)}) {url}: {e}")
 
         elapsed = time.time() - start_time
-        print(f"    [i] 累计耗时: {elapsed:.1f}s")
-        if i < len(urls) - 1:
+        print(f"    [i] 累计耗时: {elapsed:.1f}s | 已提交总计: {len(done)}")
+        if i < len(batch_urls) - 1:
             # 降低频率以减少 429：每 3 秒一个请求
             time.sleep(3)
 
-    print(f"  [i] Indexing API 提交结束，总耗时: {time.time() - start_time:.1f}s")
-    return {"submitted": submitted, "failed": failed, "errors": errors}
+    print(f"  [i] 本批结束: 新增提交 {submitted}, 失败 {failed}, 累计已提交 {len(done)}/{len(urls)}")
+    return {"submitted": submitted, "failed": failed, "errors": errors, "total_done": len(done)}
 
 
 # ============================================================
@@ -577,7 +629,7 @@ def main():
     if sa_json:
         print(f"  [i] 发现 Service Account，开始提交 {len(urls)} 个 URL...")
         indexing_result = submit_urls_via_indexing_api(urls, sa_json)
-        print(f"\n  提交完成: 成功 {indexing_result['submitted']}, 失败 {indexing_result['failed']}")
+        print(f"\n  提交完成: 本次成功 {indexing_result['submitted']}, 失败 {indexing_result['failed']}, 累计已提交 {indexing_result.get('total_done', 0)}/{len(urls)}")
     else:
         print("  [i] 未配置 GOOGLE_SERVICE_ACCOUNT_JSON，跳过 Indexing API")
         print("  [i] PubSubHubbub + Sitemap Ping 已足够让 Google 发现你的网站")
@@ -640,8 +692,9 @@ def main():
     if indexing_result:
         report += f"""
 ### Indexing API 详情
-- 提交成功: {indexing_result['submitted']}
-- 提交失败: {indexing_result['failed']}
+- 本次提交成功: {indexing_result['submitted']}
+- 本次提交失败: {indexing_result['failed']}
+- 累计已提交: {indexing_result.get('total_done', 0)}/{len(urls)}
 """
         if indexing_result.get("errors"):
             report += "\n### 错误信息\n"
