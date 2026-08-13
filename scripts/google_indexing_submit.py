@@ -269,10 +269,13 @@ def get_service_account_token(service_account_json, scopes):
     """用 service account JSON 获取指定 scope 的 access token"""
     import base64
 
+    print("    [i] SA: 解析 service account JSON...")
     sa = json.loads(service_account_json) if isinstance(service_account_json, str) else service_account_json
     client_email = sa["client_email"]
     private_key = sa["private_key"]
+    print(f"    [i] SA: client_email={client_email}")
 
+    print("    [i] SA: 构建 JWT...")
     now = int(time.time())
     header = {"alg": "RS256", "typ": "JWT"}
     scope_str = " ".join(scopes) if isinstance(scopes, (list, tuple)) else scopes
@@ -300,6 +303,7 @@ def get_service_account_token(service_account_json, scopes):
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
 
+    print("    [i] SA: 加载私钥并签名...")
     key = serialization.load_pem_private_key(private_key.encode(), password=None)
     signature = key.sign(signing_input, padding.PKCS1v15(), hashes.SHA256())
     signature_b64 = b64encode(signature)
@@ -318,11 +322,15 @@ def get_service_account_token(service_account_json, scopes):
     )
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
-    print("    [i] 正在用 service account 换取 Google access token...")
-    with urllib.request.urlopen(req, timeout=15, context=CTX) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-        print("    [OK] Service account token 获取成功")
-        return result["access_token"]
+    print(f"    [i] SA: 请求 Google OAuth2 token (scope={scope_str})...")
+    try:
+        with urllib.request.urlopen(req, timeout=8, context=CTX) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            print("    [OK] SA: Google access token 获取成功")
+            return result["access_token"]
+    except Exception as e:
+        print(f"    [X] SA: 获取 token 失败: {e}")
+        raise
 
 
 def get_indexing_api_token(service_account_json):
@@ -351,11 +359,18 @@ def submit_urls_via_indexing_api(urls, service_account_json):
         print(f"  [!] 获取 Indexing API token 失败: {e}")
         return {"submitted": 0, "failed": len(urls), "errors": [str(e)]}
 
+    # 允许通过环境变量限制测试数量；默认 0 表示全部提交
+    limit = int(os.environ.get("INDEXING_API_LIMIT", "5") or 5)
+    if limit and limit < len(urls):
+        print(f"  [i] 测试模式：仅提交前 {limit} 个 URL (INDEXING_API_LIMIT={limit})")
+        urls = urls[:limit]
+
     submitted = 0
     failed = 0
     errors = []
 
     print(f"  [i] 开始逐个提交 {len(urls)} 个 URL 到 Indexing API...")
+    start_time = time.time()
     for i, url in enumerate(urls):
         print(f"  [i] 正在提交 ({i+1}/{len(urls)})...")
         try:
@@ -384,9 +399,12 @@ def submit_urls_via_indexing_api(urls, service_account_json):
             errors.append(f"{url}: {e}")
             print(f"  [X] ({i+1}/{len(urls)}) {url}: {e}")
 
+        elapsed = time.time() - start_time
+        print(f"    [i] 累计耗时: {elapsed:.1f}s")
         if i < len(urls) - 1:
             time.sleep(1)
 
+    print(f"  [i] Indexing API 提交结束，总耗时: {time.time() - start_time:.1f}s")
     return {"submitted": submitted, "failed": failed, "errors": errors}
 
 
