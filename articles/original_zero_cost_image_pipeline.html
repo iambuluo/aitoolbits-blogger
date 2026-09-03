@@ -1,0 +1,45 @@
+<div style="max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.8; font-size: 16px; color: #333;">
+
+<h1>How I Built a $0/Month Image Pipeline for My WordPress Plugins</h1>
+<p><em>By dengf | Published: September 3, 2026 | Category: Behind the Scenes</em></p>
+
+<p>I ship WordPress image-library plugins. For the first year I paid a stock agency $60/month so my demos and docs wouldn't look empty. That's $720 a year for pictures I only half-used. So I rebuilt the whole image layer on free, API-accessible sources. Here's exactly what worked, what broke, and what I'd do differently.</p>
+
+<h2>The Goal</h2>
+<p>Replace the paid subscription with: (1) a free API for runtime image search, (2) a cache so I'm not hammering rate limits, and (3) a license check so I never ship something I'm not allowed to.</p>
+
+<h2>What I Actually Used</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+<thead style="background: #f5f5f5;">
+<tr><th>Source</th><th>Free API</th><th>License</th><th>My Use</th><th>Verdict</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Unsplash</strong></td><td>Yes</td><td>Unsplash License</td><td>Hero images</td><td>✅ Best</td></tr>
+<tr><td><strong>Pexels</strong></td><td>Yes</td><td>Pexels License</td><td>Fallbacks</td><td>✅ Solid</td></tr>
+<tr><td><strong>Pixabay</strong></td><td>Yes</td><td>CC0</td><td>Safest (no attribution)</td><td>✅ Solid</td></tr>
+<tr><td>Paid agency</td><td>No</td><td>Commercial</td><td>&mdash;</td><td>❌ Cancelled</td></tr>
+</tbody>
+</table>
+
+<h2>What Broke (and How I Fixed It)</h2>
+<h3>1. Rate limits killed my demos</h3>
+<p>Unsplash's free API allows 50 requests/hour. My demo site got popular and started 429-ing. Fix: I added a local cache &mdash; fetch once, store the URL + a 24-hour TTL, serve from cache. Requests dropped ~95%.</p>
+<h3>2. License fine print</h3>
+<p>Unsplash and Pexels are free but require attribution in some contexts, and you can't sell the photos as-is. I added a per-image license tag in my DB and a footer credit builder so compliance is automatic, not manual.</p>
+<h3>3. Dead links</h3>
+<p>Free CDN URLs occasionally 404. I added a fallback chain: Unsplash &rarr; Pexels &rarr; Pixabay. If one source is down, the next fills in. Uptime went from "mostly" to "always."</p>
+
+<h2>The Final Setup</h2>
+<p><strong>Search via Unsplash API &rarr; cache 24h &rarr; render with automatic attribution &rarr; fall back to Pexels/Pixabay on miss.</strong> Zero monthly cost, and the output looks the same as the $60 plan did.</p>
+
+<h2>FAQ</h2>
+<p><strong>Q: Is free really free for commercial plugins?</strong><br>A: Unsplash and Pexels allow commercial use. Pixabay (CC0) is the safest. Always keep the license tag and attribution.</p>
+<p><strong>Q: Won't caching hurt freshness?</strong><br>A: For docs and demos, a 24-hour TTL is fine. Set it shorter if you need new images daily.</p>
+<p><strong>Q: Did quality drop?</strong><br>A: No. The free libraries have enough volume that I find a good match in the first few results.</p>
+
+<h2>Bottom Line</h2>
+<p>$60/month was laziness, not a requirement. A free API plus a cache and a fallback chain replaced it completely. If you're paying for stock just to fill placeholders, you're overpaying.</p>
+
+<p><em>Running paid stock somewhere it doesn't need to be? Tell me where &mdash; I'll guess whether you can kill the subscription.</em></p>
+
+</div>
