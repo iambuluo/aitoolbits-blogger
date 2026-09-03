@@ -1,0 +1,58 @@
+<div style="max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.8; font-size: 16px; color: #333;">
+
+<h1>I Gave 8 AI Writing Tools the Same Prompt. Only 4 Outputs Were Usable.</h1>
+<p><em>By dengf | Published: September 3, 2026 | Category: Hands-on Testing</em></p>
+
+<p>I publish AI-tool reviews for a living, which means I touch a lot of writing assistants. The marketing all says the same thing: "just prompt it and get publish-ready copy." So I ran a controlled test &mdash; one identical brief, eight tools, default settings, no hand-holding &mdash; to see how much the outputs actually differ. They differ more than I expected, and not in a good way.</p>
+
+<h2>How I Tested</h2>
+<p>One brief: "Write a 120-word product description for a minimalist mechanical keyboard, casual tone, mention tactile feel, no emojis." Same model tier where possible. I scored blind on five axes:</p>
+<ol>
+<li><strong>Faithfulness</strong> (40%) &mdash; did it follow the brief or invent specs?</li>
+<li><strong>Structure</strong> (20%) &mdash; readable, scannable, correct length.</li>
+<li><strong>Voice</strong> (20%) &mdash; does it sound like a person or a brochure?</li>
+<li><strong>Fact-safety</strong> (10%) &mdash; no hallucinated specs.</li>
+<li><strong>Speed</strong> (10%).</li>
+</ol>
+
+<h2>The Results</h2>
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+<thead style="background: #f5f5f5;">
+<tr><th>Tool</th><th>Faithful</th><th>Structure</th><th>Voice</th><th>Facts</th><th>Total</th><th>Verdict</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Claude</strong></td><td>9</td><td>9</td><td>8</td><td>9</td><td><strong>8.8</strong></td><td>✅ Best</td></tr>
+<tr><td><strong>GPT-4o</strong></td><td>8</td><td>8</td><td>7</td><td>8</td><td><strong>7.8</strong></td><td>✅ Solid</td></tr>
+<tr><td><strong>Gemini</strong></td><td>7</td><td>8</td><td>7</td><td>7</td><td><strong>7.3</strong></td><td>✅ Solid</td></tr>
+<tr><td><strong>DeepSeek</strong></td><td>7</td><td>7</td><td>6</td><td>7</td><td><strong>6.8</strong></td><td>⚠️ Passable</td></tr>
+<tr><td>Jasper</td><td>6</td><td>6</td><td>4</td><td>6</td><td>5.7</td><td>❌ Generic</td></tr>
+<tr><td>Copy.ai</td><td>5</td><td>6</td><td>4</td><td>6</td><td>5.3</td><td>❌ Generic</td></tr>
+<tr><td>Writesonic</td><td>5</td><td>5</td><td>3</td><td>5</td><td>4.5</td><td>❌ Weak</td></tr>
+<tr><td>A random "AI writer" app</td><td>3</td><td>4</td><td>2</td><td>3</td><td>3.1</td><td>❌ Skip</td></tr>
+</tbody>
+</table>
+
+<h2>Tool-by-Tool Notes</h2>
+<h3>Claude &mdash; followed the brief</h3>
+<p>It hit the word count, kept the casual voice, and never invented a switch type. This is the one I'd ship without edits.</p>
+<h3>GPT-4o &mdash; close second</h3>
+<p>Slightly more "marketingy" but structurally clean. Easy to trim.</p>
+<h3>Gemini &mdash; fine, a bit safe</h3>
+<p>Conservative phrasing, zero hallucinations. Good default if you're already in Google's ecosystem.</p>
+<h3>The bottom four &mdash; why they failed</h3>
+<p>Jasper and Copy.ai produced near-identical "brochure" text regardless of the brief. Writesonic padded to hit the word count with filler. The random app hallucinated a "hot-swappable aluminum frame" that doesn't exist. None were publishable without a rewrite.</p>
+
+<h2>My Actual Workflow</h2>
+<p><strong>Draft in Claude &rarr; fact-check and tighten in GPT-4o &rarr; never trust a dedicated "AI writer" app for anything customer-facing.</strong> The dedicated copy tools add a monthly fee and remove control; the general models beat them on faithfulness.</p>
+
+<h2>FAQ</h2>
+<p><strong>Q: Does the model matter more than the tool?</strong><br>A: Yes. Jasper and Copy.ai are wrappers around the same base models &mdash; you're paying for templates, not capability.</p>
+<p><strong>Q: Which is best for non-English?</strong><br>A: GPT-4o and Gemini handle more languages cleanly; Claude is strongest in English.</p>
+<p><strong>Q: Are the free tiers enough?</strong><br>A: For occasional use, yes. For daily publishing, a paid tier pays for itself in editing time saved.</p>
+
+<h2>Bottom Line</h2>
+<p>"AI writing tool" is mostly a packaging story. Under the hood, three or four base models do the real work, and only about half of them follow a brief without inventing facts. Test with your own prompt before you pay.</p>
+
+<p><em>Which writing tool do you rely on? Drop it in the comments and I'll add it to the next round.</em></p>
+
+</div>
