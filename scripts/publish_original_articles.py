@@ -31,13 +31,21 @@ BLOGGER_API = "https://www.googleapis.com/blogger/v3/blogs"
 # NOTE: only the NEW originals are listed here. The first two English
 # originals were already published (with Imgur images via fix_original_images).
 ORIGINAL_ARTICLES = {
-    "original_12_stock_photo_plugins.html": {
-        "labels": ["Behind the Scenes", "WordPress Plugins", "Original"],
-        "search_description": "After shipping a dozen stock-photo and image-library WordPress plugins, here are the 3 mistakes I see every developer make — and the fix that actually holds up.",
+    "original_ai_writing_tools_same_prompt.html": {
+        "labels": ["Hands-on Testing", "AI Writing", "Original"],
+        "search_description": "I ran one identical brief through 8 AI writing tools on default settings. Only about half followed it without inventing facts — here's the blind comparison.",
     },
-    "original_self_built_image_library.html": {
-        "labels": ["Hands-on Testing", "Image Library", "Original"],
-        "search_description": "I wired free stock APIs (Unsplash, Pexels, Pixabay) into a WordPress plugin to stop paying $60/month for images. Real numbers, what broke, and when you still need paid.",
+    "original_zero_cost_image_pipeline.html": {
+        "labels": ["Behind the Scenes", "WordPress Plugins", "Original"],
+        "search_description": "I replaced a $60/month stock subscription with free Unsplash/Pexels/Pixabay APIs plus a cache and fallback chain. Real numbers, what broke, and the fix.",
+    },
+    "original_ai_productivity_wrong_problem.html": {
+        "labels": ["Opinion", "AI Productivity", "Original"],
+        "search_description": "Most 'AI productivity' tools speed up the typing, not the thinking. A blunt take on which ones actually remove a real bottleneck.",
+    },
+    "original_blog_to_linkedin_carousel.html": {
+        "labels": ["Step-by-step Tutorial", "Content Repurposing", "Original"],
+        "search_description": "Turn any published blog post into a 10-slide LinkedIn carousel in ~20 minutes with AI for the words and a free maker for the layout. No design skills.",
     },
 }
 
